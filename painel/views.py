@@ -756,34 +756,9 @@ COLABORADORES_HUB_PERMISSIONS = COLABORADORES_HUB_MODULES | {
     "setores_detalhados_colaboradores",
 }
 
-PILOT_MODULES = {
-    "colaboradores_hub",
-    "ferias_colaboradores",
-    "ausencias_colaboradores",
-    "pessoas_turno",
-    "funcoes_turno",
-    "unitizadores",
-    "paletes_vasilhames",
-    "paletes_rede",
-    "equipamentos",
-    "manutencao_equipamentos",
-    "expedicao_planejamento",
-    "carregamento_veiculos",
-    "expedicao",
-    "solicitar_lancamento_manual_expedicao",
-    "lojas_prontas_carregamento",
-    "faturamento_expedicao",
-    "relatorio_paletes_cd",
-    "checklist_frota",
-    "checklist_frota_itens",
-    "veiculos_frota",
-    "escala_veiculos_frota",
-    "aprovacoes_carregamento",
-    "solicitacao_caminhoes",
-    "materiais_frota",
-    "lacres_frota",
-    "melhorias_sistema",
-}
+# Fusão definitiva: todos os módulos do registry entram no sistema único
+# (Gestão CD + aliases Assistente Krill). Antes o piloto restringia o menu.
+PILOT_MODULES = {module.key for module in MODULES}
 
 PILOT_PERMISSIONS = PILOT_MODULES | {
     "painel",
@@ -840,6 +815,8 @@ PILOT_PERMISSIONS = PILOT_MODULES | {
     "excluir_registros",
     "exportar_dados",
     "sentinela_servidor",
+    "tms_expedicao",
+    "tms_krill",
 }
 
 
@@ -1377,7 +1354,8 @@ def can_export_module(user, module):
 def visible_modules(user, include_hub_hidden=False):
     profile = ensure_profile(user)
     hidden = set(profile.abas_ocultas if profile else [])
-    hidden_from_menu = {"separacao_produtividade"}
+    # Produtividade Separação volta ao menu (alias Krill: produtividade_cd)
+    hidden_from_menu = set()
     if not include_hub_hidden:
         hidden_from_menu.update(hidden_modules_from_custom_hubs())
     return [
@@ -1443,8 +1421,31 @@ def module_key_alias(key):
         "carregar_veiculo": "carregamento_veiculos",
         "carregar-veiculo": "carregamento_veiculos",
         "saldo_expedicao": "expedicao",
+        # Aliases Assistente Krill → Gestão CD (mesmo banco, sem rotas duplicadas)
+        "produtividade_cd": "separacao",
+        "painel_estacao": "ressuprimento_painel",
+        "separacao_controle": "separacao",
+        "regras_separacao": "separacao",
+        "avaria_triagem": "avarias",
+        "expedicao_controle": "expedicao",
+        "historico_saldos_paletes": "relatorio_paletes_cd",
+        "veiculos_disponibilidade": "veiculos_frota",
+        "disponibilidade_veiculos": "veiculos_frota",
+        "informar_loja_pronta": "lojas_prontas_carregamento",
+        "loja_pronta": "lojas_prontas_carregamento",
     }
     return aliases.get(key, key)
+
+
+MODULE_SCREEN_TEMPLATES = {
+    "lojas_prontas_carregamento": "painel/lojas_prontas.html",
+    "expedicao_planejamento": "painel/expedicao_planejamento.html",
+    "carregamento_veiculos": "painel/expedicao_planejamento.html",
+    "relatorio_paletes_cd": "painel/relatorio_paletes_cd.html",
+    "expedicao": "painel/expedicao.html",
+    "solicitar_lancamento_manual_expedicao": "painel/expedicao_manual.html",
+    "paletes_rede": "painel/paletes_rede.html",
+}
 
 
 @login_required
@@ -2781,8 +2782,6 @@ def context_base(request):
     can_system_features = can_manage_system_features(request.user)
     can_push_admin = can_manage_push(request.user)
     profile_cd = normalized_profile_cd(profile) if profile else "806"
-    resolver_name = getattr(getattr(request, "resolver_match", None), "url_name", "") or ""
-    topbar_plain_pages = {"dashboard", "login", "solicitar_senha", "offline"}
     if request.user.is_authenticated:
         session_cd = request.session.get("cd_unidade") or cd_atual
         if request.session.get("ultima_rota") != request.path:
@@ -2801,7 +2800,7 @@ def context_base(request):
         "cd_unidade_label": cd_scope_label(cd_atual),
         "app_version": settings.APP_VERSION,
         "current_full_path": request.get_full_path(),
-        "show_topbar_back": resolver_name not in topbar_plain_pages,
+        "show_topbar_back": False,
         "topbar_back_url": reverse("dashboard"),
         "module_groups": cached_runtime_value(("module_groups", request.user.pk, profile_version), 15, lambda: grouped_modules(request.user)),
         "navigation_groups": cached_runtime_value(("navigation_groups", request.user.pk, profile_version), 15, lambda: navigation_groups(request.user)),
@@ -2837,6 +2836,9 @@ def context_base(request):
         "require_load_value_on_confirm": system_rule_enabled("obrigar_valor_confirmar_carregamento") and can_view_billing_value(request.user),
         "can_system_features": can_system_features,
         "can_manage_push": can_push_admin,
+        "can_tms_expedicao": user_has_perm(request.user, "tms_expedicao"),
+        "can_tms_krill": user_has_perm(request.user, "tms_krill") or user_has_perm(request.user, "tms_expedicao"),
+        "krill_nav_open": request.path.startswith(("/tms/", "/wms/", "/yms/", "/patio-docas", "/dashboard/")),
         "show_tools_menu": any(
             [
                 user_has_perm(request.user, "importar_planilhas"),
@@ -3628,15 +3630,19 @@ def pwa_manifest(request):
 @never_cache
 def pwa_icon(request, filename):
     allowed = {
-        "apple-touch-icon.png": "modelo-teste-apple.png",
-        "apple-touch-icon-precomposed.png": "modelo-teste-apple.png",
-        "favicon.ico": "modelo-teste-192.png",
+        "apple-touch-icon.png": "rede-krill-logo-clean.png",
+        "apple-touch-icon-precomposed.png": "rede-krill-logo-clean.png",
+        "favicon.ico": "rede-krill-logo-clean.png",
     }
     icon_name = allowed.get(filename)
     if not icon_name:
         return HttpResponse(status=404)
-    icon_path = settings.BASE_DIR / "painel" / "static" / "painel" / "img" / icon_name
-    if not icon_path.exists():
+    candidates = [
+        settings.BASE_DIR / "static" / "painel" / "img" / icon_name,
+        settings.BASE_DIR / "painel" / "static" / "painel" / "img" / icon_name,
+    ]
+    icon_path = next((path for path in candidates if path.exists()), None)
+    if not icon_path:
         return HttpResponse(status=404)
     response = FileResponse(icon_path.open("rb"), content_type="image/png")
     response["Cache-Control"] = "no-cache, no-store, must-revalidate"
@@ -10773,7 +10779,8 @@ def module_list(request, key):
             "module_stacked": module.key in FOCUSED_MODULES,
         }
     )
-    return render(request, "painel/module_list.html", ctx)
+    template_name = MODULE_SCREEN_TEMPLATES.get(module.key, "painel/module_list.html")
+    return render(request, template_name, ctx)
 
 def get_object_or_404_module(key):
     module = MODULE_BY_KEY.get(key)

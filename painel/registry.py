@@ -777,6 +777,8 @@ ALL_PERMISSIONS = [
     ("solicitacao_caminhoes", "Tela - Solicitação de Caminhões: pedir veículos para outro CD"),
     ("tratar_solicitacao_caminhoes", "Ação - Caminhões: responder solicitação e indicar motoristas"),
     ("notificar_solicitacao_caminhoes", "Notificação - Caminhões: avisar sobre pedido ou resposta de caminhões"),
+    ("tms_expedicao", "TMS - Central de Expedição: ver viagens, capacidade e telemetria do dia"),
+    ("tms_krill", "TMS/WMS/YMS - telas traduzidas do Gestão CD: romaneios, rotas, pátio, mapa e indicadores"),
 ]
 
 ALL_PERMISSION_KEYS = [key for key, _label in ALL_PERMISSIONS]

@@ -1,0 +1,560 @@
+  {% if paletes_rede %}
+    <section class="panel" id="paletes-rede">
+      <div class="panel-title">
+        <div>
+          <h2>Pallets da Rede</h2>
+          <p>Controle de PBR, CHEP, descartavel e PBR 2 por CD e loja. Use para saber o saldo total antes de separar ou devolver pallets para fornecedor.</p>
+        </div>
+        <div class="actions">
+          {% if can_export_module %}
+            <a class="btn secondary small" href="?exportar=relatorio_rede_xlsx">Baixar Excel</a>
+          {% endif %}
+          <button class="btn secondary small" type="button" data-network-print="all">Imprimir rede</button>
+          <button class="btn secondary small" type="button" data-network-print="selected">Imprimir marcados</button>
+        </div>
+      </div>
+      <div class="cd-summary-grid">
+        <article class="cd-summary-card">
+          <span>Total rede</span>
+          <strong>{{ paletes_rede.grand_total }}</strong>
+          <small>{{ paletes_rede.grand_disponivel }} disponível(is)</small>
+          <div class="cd-summary-metrics">
+            <span>Reservado <strong>{{ paletes_rede.grand_reservados }}</strong></span>
+            <span>Quebrado <strong>{{ paletes_rede.grand_quebrados }}</strong></span>
+          </div>
+        </article>
+        {% for item in paletes_rede.totals %}
+          <article class="cd-summary-card">
+            <span>{{ item.label }}</span>
+            <strong>{{ item.disponivel }}</strong>
+            <small>disponível agora</small>
+            <div class="cd-summary-metrics">
+              <span>Total <strong>{{ item.quantidade }}</strong></span>
+              <span>Reservado <strong>{{ item.reservados }}</strong></span>
+              <span>Quebrado <strong>{{ item.quebrados }}</strong></span>
+            </div>
+          </article>
+        {% endfor %}
+      </div>
+    </section>
+
+    {% if can_create_module or can_move_network_pallets %}
+      <section class="panel" id="paletes-rede-movimentacao">
+        <div class="panel-title">
+          <div>
+            <h2>Reservar ou retirar para fornecedor</h2>
+            <p>Use quando algum fornecedor cobrar pallets. Ao reservar, a quantidade fica bloqueada e deixa de aparecer como disponível até a retirada ser confirmada.</p>
+          </div>
+        </div>
+        <form method="post" class="module-form-sections simple" data-palete-rede-form>
+          {% csrf_token %}
+          <input type="hidden" name="action" value="paletes_rede_movimentar">
+          <input type="hidden" name="destino_tipo" value="fornecedor">
+          <details class="form-section network-pallet-request" open>
+            <summary>1. Informar o pedido</summary>
+            <div class="form-section-grid network-pallet-move-grid">
+              <div class="wide">
+                <span class="field-label">O que será feito?</span>
+                <div class="network-pallet-choice-grid two">
+                  <label class="network-pallet-choice">
+                    <input type="radio" name="operacao" value="reserva" checked>
+                    <strong>Reservar para fornecedor</strong>
+                    <small>Bloqueia o saldo até a retirada acontecer.</small>
+                  </label>
+                  <label class="network-pallet-choice">
+                    <input type="radio" name="operacao" value="retirada">
+                    <strong>Confirmar retirada</strong>
+                    <small>Baixa a quantidade que saiu fisicamente.</small>
+                  </label>
+                </div>
+              </div>
+              <div class="wide">
+                <span class="field-label">Tipo de pallet</span>
+                <div class="network-pallet-choice-grid">
+                  {% for tipo in paletes_rede.tipos %}
+                    <label class="network-pallet-choice compact">
+                      <input type="radio" name="tipo_palete" value="{{ tipo.value }}" data-palete-rede-tipo {% if forloop.first %}checked{% endif %}>
+                      <strong>{{ tipo.label }}</strong>
+                    </label>
+                  {% endfor %}
+                </div>
+              </div>
+              <div>
+                <label for="palete_rede_destino_nome">Fornecedor cobrando</label>
+                <input class="field" id="palete_rede_destino_nome" name="destino_nome" placeholder="Ex.: CHEP, Ambev, fornecedor X" required>
+              </div>
+              <div>
+                <label for="palete_rede_solicitante">Solicitante</label>
+                <input class="field" id="palete_rede_solicitante" name="solicitante" placeholder="Quem solicitou">
+              </div>
+              <div class="wide">
+                <label for="palete_rede_observacao">Observacao</label>
+                <textarea class="field auto-grow-textarea" id="palete_rede_observacao" name="observacao" rows="1" placeholder="Motivo, prazo, motorista ou detalhe da conferencia"></textarea>
+              </div>
+            </div>
+          </details>
+          <details class="form-section">
+            <summary>2. Escolher de onde vai retirar</summary>
+            <div class="network-source-tools">
+              <label>Buscar origem
+                <input class="field" data-network-source-search placeholder="Digite CD 806, loja 01, Gonzaga...">
+              </label>
+              <p>Preencha quantidade somente nos locais que vao entregar pallets ao fornecedor.</p>
+            </div>
+            <div class="network-source-list">
+              {% for saldo in paletes_rede.saldos %}
+                <label class="network-source-row {% if saldo.disponivel %}has-stock{% else %}no-stock{% endif %}" data-palete-rede-row="{{ saldo.tipo_palete }}">
+                  <span>
+                    <strong>{{ saldo.local_label }}</strong>
+                    <small>{{ saldo.get_tipo_palete_display }} · total {{ saldo.quantidade }} · reservado {{ saldo.reservados }} · quebrado {{ saldo.quebrados }}</small>
+                  </span>
+                  <span class="network-source-available">{% if saldo.disponivel %}{{ saldo.disponivel }} disponível{% else %}Sem saldo{% endif %}</span>
+                  <input class="field" type="number" min="0" max="{{ saldo.disponivel }}" inputmode="numeric" name="fonte_{{ saldo.pk }}" placeholder="0" {% if not saldo.disponivel %}disabled{% endif %}>
+                </label>
+              {% endfor %}
+            </div>
+          </details>
+          <button class="btn" type="submit" data-network-pallet-action-button>Bloquear saldo</button>
+        </form>
+      </section>
+    {% endif %}
+
+    <section class="panel" id="paletes-rede-locais">
+      <div class="panel-title">
+        <div>
+          <h2>Saldo por CD e loja</h2>
+          <p>Consulte cada local em cards. Use Ver para conferir, Inserir para somar entrada nova e Editar para corrigir saldo.</p>
+        </div>
+      </div>
+      {% if can_manage_pallet_balance and paletes_rede.selected_local %}
+        <details class="network-pallet-editor" id="paletes-rede-editar" hidden>
+          <summary>Editar saldo de um local</summary>
+          <div class="network-pallet-editor-body">
+            <form class="toolbar js-auto-submit-form" method="get">
+              <label>Tipo de local
+                <select class="field js-network-local-type js-auto-submit-control" name="local_tipo">
+                  <option value="cd" {% if paletes_rede.selected_local_tipo == "cd" %}selected{% endif %}>CD</option>
+                  <option value="loja" {% if paletes_rede.selected_local_tipo == "loja" %}selected{% endif %}>Loja</option>
+                </select>
+              </label>
+              <label>Local
+                <select class="field js-network-local-select js-auto-submit-control" name="local_key">
+                  {% for local in paletes_rede.cd_options %}
+                    <option value="{{ local.key }}" data-local-kind="cd" {% if local.key == paletes_rede.selected_local_key %}selected{% endif %}>{{ local.nome }}</option>
+                  {% endfor %}
+                  {% for local in paletes_rede.loja_options %}
+                    <option value="{{ local.key }}" data-local-kind="loja" {% if local.key == paletes_rede.selected_local_key %}selected{% endif %}>{{ local.nome }}</option>
+                  {% endfor %}
+                </select>
+              </label>
+              <noscript><button class="btn secondary small" type="submit">Abrir local</button></noscript>
+            </form>
+            <div class="network-pallet-edit-summary">
+              <strong>{{ paletes_rede.selected_local.nome }}</strong>
+              <span>Disponível {{ paletes_rede.selected_local.disponivel }} · Reservado {{ paletes_rede.selected_local.reservados }} · Quebrado {{ paletes_rede.selected_local.quebrados }}</span>
+            </div>
+            <div class="network-pallet-types">
+              {% for saldo in paletes_rede.selected_local.saldos %}
+                <form id="palete-rede-saldo-{{ saldo.pk }}" method="post" class="network-pallet-type">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="paletes_rede_saldo_rapido">
+                  <input type="hidden" name="saldo_id" value="{{ saldo.pk }}">
+                  <div class="network-pallet-type-head">
+                    <strong>{{ saldo.get_tipo_palete_display }}</strong>
+                    <span>{{ saldo.disponivel }} disp. · {{ saldo.reservados }} res.</span>
+                  </div>
+                  <label>Total
+                    <input class="field" type="number" min="0" name="quantidade" value="{{ saldo.quantidade }}" inputmode="numeric">
+                  </label>
+                  <label>Quebrado
+                    <input class="field" type="number" min="0" name="quebrados" value="{{ saldo.quebrados }}" inputmode="numeric">
+                  </label>
+                  <label>Reservado
+                    <input class="field" type="number" min="0" name="reservados" value="{{ saldo.reservados }}" inputmode="numeric">
+                  </label>
+                  <label class="wide">Responsavel
+                    <input class="field" name="responsavel" value="{{ saldo.responsavel }}" placeholder="Opcional">
+                  </label>
+                  <button class="btn small secondary" type="submit">Salvar {{ saldo.get_tipo_palete_display }}</button>
+                </form>
+              {% endfor %}
+            </div>
+          </div>
+        </details>
+      {% endif %}
+      <div class="network-pallet-grid">
+        {% for local in paletes_rede.locais %}
+          <article class="network-pallet-card {% if local.disponivel %}has-stock{% endif %}" data-network-local-card="{{ local.key }}">
+            <div class="network-pallet-head">
+              <div>
+                <span>{{ local.tipo }}</span>
+                <strong>{{ local.nome }}</strong>
+              </div>
+              <div class="network-pallet-total">
+                <small>Total</small>
+                <b>{{ local.quantidade }}</b>
+              </div>
+            </div>
+            <div class="network-pallet-metrics">
+              <span>Disponível <strong>{{ local.disponivel }}</strong></span>
+              <span>Reservado <strong>{{ local.reservados }}</strong></span>
+              <span>Quebrado <strong>{{ local.quebrados }}</strong></span>
+            </div>
+            <div class="network-pallet-actions">
+              <label class="network-print-picker">
+                <input type="checkbox" value="{{ local.key }}" data-network-print-pick>
+                <span>Marcar</span>
+              </label>
+              <button class="btn small secondary" type="button" data-network-print-one="{{ local.key }}">Imprimir</button>
+              <a class="btn small secondary" href="?local_tipo={{ local.tipo_param }}&local_key={{ local.key|urlencode }}&palete_modal=ver#paletes-rede-modal">Ver</a>
+              {% if can_manage_pallet_balance %}
+                <a class="btn small secondary" href="?local_tipo={{ local.tipo_param }}&local_key={{ local.key|urlencode }}&palete_modal=inserir#paletes-rede-modal">Inserir</a>
+                <a class="btn small secondary" href="?local_tipo={{ local.tipo_param }}&local_key={{ local.key|urlencode }}&palete_modal=editar#paletes-rede-modal">Editar</a>
+              {% endif %}
+            </div>
+            <details class="network-pallet-card-details" hidden>
+              <summary>Ver tipos de pallet</summary>
+              <div class="network-pallet-stock-lines">
+                <strong>Disponivel</strong>
+                {% for saldo in local.saldos %}
+                  <span>{{ saldo.get_tipo_palete_display }}: {{ saldo.disponivel }}</span>
+                {% endfor %}
+                <strong>Reservado</strong>
+                {% for saldo in local.saldos %}
+                  <span>{{ saldo.get_tipo_palete_display }}: {{ saldo.reservados }}</span>
+                {% endfor %}
+              </div>
+            </details>
+            {% if can_manage_pallet_balance %}
+              <a class="btn small secondary network-pallet-edit-link" hidden href="?local_tipo={{ local.tipo_param }}&local_key={{ local.key|urlencode }}#paletes-rede-editar">Editar este local</a>
+            {% endif %}
+          </article>
+        {% endfor %}
+        <section class="network-print-report" data-network-print-report aria-label="Relatorio de pallets da rede">
+          <header>
+            <div>
+              <span>Gestão CD</span>
+              <h1>Relatório de Pallets da Rede</h1>
+              <p>Resumo para conferência, reserva, retirada ou análise de saldos por CD e loja.</p>
+            </div>
+            <div>
+              <strong>Total rede: {{ paletes_rede.grand_total }}</strong>
+              <span>Disponível {{ paletes_rede.grand_disponivel }} | Reservado {{ paletes_rede.grand_reservados }} | Quebrado {{ paletes_rede.grand_quebrados }}</span>
+            </div>
+          </header>
+          <table class="network-print-table">
+            <thead>
+              <tr>
+                <th>Tipo de local</th>
+                <th>Local</th>
+                <th>Tipo de pallet</th>
+                <th>Total</th>
+                <th>Disponível</th>
+                <th>Reservado</th>
+                <th>Quebrado</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for local in paletes_rede.locais %}
+                {% for saldo in local.saldos %}
+                  <tr class="network-print-local" data-network-print-local="{{ local.key }}">
+                    <td>{{ local.tipo }}</td>
+                    <td><strong>{{ local.nome }}</strong></td>
+                    <td>{{ saldo.get_tipo_palete_display }}</td>
+                    <td>{{ saldo.quantidade }}</td>
+                    <td>{{ saldo.disponivel }}</td>
+                    <td>{{ saldo.reservados }}</td>
+                    <td>{{ saldo.quebrados }}</td>
+                  </tr>
+                {% endfor %}
+              {% endfor %}
+            </tbody>
+          </table>
+        </section>
+      </div>
+      {% if paletes_rede.modal_mode and paletes_rede.selected_local %}
+        <section class="network-pallet-modal-layer" id="paletes-rede-modal" aria-label="Subtela de pallets da rede">
+          <div class="network-pallet-modal">
+            <div class="network-pallet-modal-head">
+              <div>
+                <span>{{ paletes_rede.selected_local.tipo }}</span>
+                <h3>{{ paletes_rede.selected_local.nome }}</h3>
+                <p>Disponível {{ paletes_rede.selected_local.disponivel }} - Reservado {{ paletes_rede.selected_local.reservados }} - Quebrado {{ paletes_rede.selected_local.quebrados }}</p>
+              </div>
+              <a class="network-pallet-close-x" href="{% url 'module_list' module.key %}#paletes-rede-locais" aria-label="Fechar subtela" title="Fechar">X</a>
+            </div>
+            <nav class="network-pallet-tabs" aria-label="Acoes do local">
+              <a class="{% if paletes_rede.modal_mode == 'ver' %}is-active{% endif %}" href="?local_tipo={{ paletes_rede.selected_local.tipo_param }}&local_key={{ paletes_rede.selected_local.key|urlencode }}&palete_modal=ver#paletes-rede-modal">Ver saldo</a>
+              {% if can_manage_pallet_balance %}
+                <a class="{% if paletes_rede.modal_mode == 'inserir' %}is-active{% endif %}" href="?local_tipo={{ paletes_rede.selected_local.tipo_param }}&local_key={{ paletes_rede.selected_local.key|urlencode }}&palete_modal=inserir#paletes-rede-modal">Inserir saldo</a>
+                <a class="{% if paletes_rede.modal_mode == 'editar' %}is-active{% endif %}" href="?local_tipo={{ paletes_rede.selected_local.tipo_param }}&local_key={{ paletes_rede.selected_local.key|urlencode }}&palete_modal=editar#paletes-rede-modal">Editar saldo</a>
+              {% endif %}
+                <a class="{% if paletes_rede.modal_mode == 'historico' %}is-active{% endif %}" href="?local_tipo={{ paletes_rede.selected_local.tipo_param }}&local_key={{ paletes_rede.selected_local.key|urlencode }}&palete_modal=historico#paletes-rede-modal">Histórico</a>
+            </nav>
+
+            {% if paletes_rede.modal_mode == "ver" %}
+              <div class="network-pallet-modal-grid">
+                <div class="network-pallet-type-table">
+                  <div class="network-pallet-type-row is-head">
+                    <span>Tipo</span><span>Disponivel</span><span>Reservado</span><span>Quebrado</span><span>Total</span>
+                  </div>
+                  {% for saldo in paletes_rede.selected_local.saldos %}
+                    <div class="network-pallet-type-row">
+                      <strong>{{ saldo.get_tipo_palete_display }}</strong>
+                      <span>{{ saldo.disponivel }}</span>
+                      <span>{{ saldo.reservados }}</span>
+                      <span>{{ saldo.quebrados }}</span>
+                      <span>{{ saldo.quantidade }}</span>
+                    </div>
+                  {% endfor %}
+                </div>
+                <aside class="network-pallet-modal-aside">
+                  <strong>Leitura rapida</strong>
+                  <span>Use disponível para saber o que pode ser separado para fornecedor.</span>
+                  <span>Reservado já está bloqueado e não deve ser contado como saldo livre.</span>
+                </aside>
+              </div>
+            {% elif paletes_rede.modal_mode == "inserir" and can_manage_pallet_balance %}
+              <div class="network-pallet-types">
+                {% for saldo in paletes_rede.selected_local.saldos %}
+                  <form id="palete-rede-saldo-inserir-{{ saldo.pk }}" method="post" class="network-pallet-type compact">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="paletes_rede_saldo_rapido">
+                    <input type="hidden" name="saldo_id" value="{{ saldo.pk }}">
+                    <input type="hidden" name="saldo_modo" value="inserir">
+                    <div class="network-pallet-type-head">
+                      <strong>{{ saldo.get_tipo_palete_display }}</strong>
+                      <span>Atual {{ saldo.quantidade }} - disponível {{ saldo.disponivel }}</span>
+                    </div>
+                    <label>Somar
+                      <input class="field" type="number" min="0" name="quantidade_adicionar" value="0" inputmode="numeric">
+                    </label>
+                    <label>Responsavel
+                      <input class="field" name="responsavel" value="{{ saldo.responsavel }}" placeholder="Opcional">
+                    </label>
+                    <button class="btn small secondary" type="submit">Inserir {{ saldo.get_tipo_palete_display }}</button>
+                  </form>
+                {% endfor %}
+              </div>
+            {% elif paletes_rede.modal_mode == "editar" and can_manage_pallet_balance %}
+              <div class="network-pallet-types">
+                {% for saldo in paletes_rede.selected_local.saldos %}
+                  <form id="palete-rede-saldo-editar-{{ saldo.pk }}" method="post" class="network-pallet-type">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="paletes_rede_saldo_rapido">
+                    <input type="hidden" name="saldo_id" value="{{ saldo.pk }}">
+                    <input type="hidden" name="saldo_modo" value="editar">
+                    <div class="network-pallet-type-head">
+                      <strong>{{ saldo.get_tipo_palete_display }}</strong>
+                      <span>{{ saldo.disponivel }} disp. - {{ saldo.reservados }} res.</span>
+                    </div>
+                    <label>Total
+                      <input class="field" type="number" min="0" name="quantidade" value="{{ saldo.quantidade }}" inputmode="numeric">
+                    </label>
+                    <label>Quebrado
+                      <input class="field" type="number" min="0" name="quebrados" value="{{ saldo.quebrados }}" inputmode="numeric">
+                    </label>
+                    <label>Reservado
+                      <input class="field" type="number" min="0" name="reservados" value="{{ saldo.reservados }}" inputmode="numeric">
+                    </label>
+                    <label class="wide">Responsavel
+                      <input class="field" name="responsavel" value="{{ saldo.responsavel }}" placeholder="Opcional">
+                    </label>
+                    <button class="btn small secondary" type="submit">Salvar {{ saldo.get_tipo_palete_display }}</button>
+                  </form>
+                {% endfor %}
+              </div>
+            {% else %}
+              <div class="network-pallet-history-tools">
+                <label>Pesquisar no historico
+                  <input class="field js-network-history-search" placeholder="Digite fornecedor, origem, destino ou observacao">
+                </label>
+              </div>
+              <div class="approval-list network-pallet-history-list">
+                {% for mov in paletes_rede.movimentacoes %}
+                  <article class="approval-card" data-network-history-item>
+                    <div class="approval-card-head">
+                      <div>
+                        <strong>{{ mov.get_operacao_display }} - {{ mov.get_tipo_palete_display }}</strong>
+                        <span>{{ mov.data|date:"d/m/Y" }} - {{ mov.quantidade }} pallet(s) - {{ mov.solicitante|default:"Sem solicitante" }}</span>
+                      </div>
+                      <span class="status-pill">{{ mov.get_status_display }}</span>
+                    </div>
+                    <div class="record-detail-grid">
+                      <span><strong>Origem:</strong> {{ mov.origem_resumo }}</span>
+                      <span><strong>Destino:</strong> {{ mov.destino_nome|default:"Reserva/retirada" }}</span>
+                      <span><strong>Obs.:</strong> {{ mov.observacao|default:"-" }}</span>
+                    </div>
+                  </article>
+                {% empty %}
+                  <article class="card"><span>Sem historico</span><strong>Nenhuma movimentacao registrada ainda.</strong></article>
+                {% endfor %}
+              </div>
+            {% endif %}
+          </div>
+        </section>
+      {% endif %}
+    </section>
+
+    <details class="panel records-panel" id="paletes-rede-relatorio">
+      <summary>
+        <span>Relatorio de retirada e analise</span>
+        <span class="metric-pill">{{ paletes_rede.movimentacoes|length }}</span>
+      </summary>
+      <div class="records-panel-content">
+        <div class="panel-title">
+          <div>
+            <h2>Relatorio de retirada e analise</h2>
+            <p>Histórico recente para confirmar retirada, transferência ou reserva de pallets.</p>
+          </div>
+          <button class="btn secondary small" type="button" data-network-print="all">Imprimir</button>
+        </div>
+      <div class="approval-list">
+        {% for mov in paletes_rede.movimentacoes %}
+          <article class="approval-card">
+            <div class="approval-card-head">
+              <div>
+                <strong>{{ mov.get_operacao_display }} - {{ mov.get_tipo_palete_display }}</strong>
+                <span>{{ mov.data|date:"d/m/Y" }} · {{ mov.quantidade }} pallet(s) · {{ mov.solicitante|default:"Sem solicitante" }}</span>
+              </div>
+              <span class="status-pill">{{ mov.get_status_display }}</span>
+            </div>
+            <div class="record-detail-grid">
+              <span><strong>Origem:</strong> {{ mov.origem_resumo }}</span>
+              <span><strong>Destino:</strong> {{ mov.destino_nome|default:"Reserva/retirada" }}</span>
+              <span><strong>Obs.:</strong> {{ mov.observacao|default:"-" }}</span>
+            </div>
+          </article>
+        {% empty %}
+          <article class="card"><span>Sem movimentacao</span><strong>Nenhuma reserva ou retirada registrada ainda.</strong></article>
+        {% endfor %}
+      </div>
+      </div>
+    </details>
+
+    <script>
+      (function () {
+        var selectors = document.querySelectorAll("[data-palete-rede-tipo]");
+        var sourceSearch = document.querySelector("[data-network-source-search]");
+        function updateRows() {
+          var checked = document.querySelector("[data-palete-rede-tipo]:checked");
+          var tipo = checked ?checked.value : "";
+          var term = sourceSearch ?sourceSearch.value.trim().toLowerCase() : "";
+          document.querySelectorAll("[data-palete-rede-row]").forEach(function (row) {
+            var sameType = row.dataset.paleteRedeRow === tipo;
+            var matchesSearch = !term || row.textContent.toLowerCase().includes(term);
+            row.hidden = !sameType || !matchesSearch;
+          });
+        }
+        selectors.forEach(function (selector) {
+          selector.addEventListener("change", updateRows);
+        });
+        if (sourceSearch) sourceSearch.addEventListener("input", updateRows);
+        if (selectors.length) updateRows();
+        var operationSelectors = document.querySelectorAll('[name="operacao"]');
+        var palletActionButton = document.querySelector("[data-network-pallet-action-button]");
+        function updatePalletActionButton() {
+          if (!palletActionButton) return;
+          var checked = document.querySelector('[name="operacao"]:checked');
+          palletActionButton.textContent = checked && checked.value === "retirada" ?"Confirmar retirada" : "Bloquear saldo";
+        }
+        operationSelectors.forEach(function (selector) {
+          selector.addEventListener("change", updatePalletActionButton);
+        });
+        updatePalletActionButton();
+        document.querySelectorAll(".auto-grow-textarea").forEach(function (field) {
+          function grow() {
+            field.style.height = "auto";
+            field.style.height = Math.min(field.scrollHeight, 180) + "px";
+          }
+          field.addEventListener("input", grow);
+          grow();
+        });
+        var localType = document.querySelector(".js-network-local-type");
+        var localSelect = document.querySelector(".js-network-local-select");
+        function filterLocalOptions() {
+          if (!localType || !localSelect) return;
+          var kind = localType.value || "cd";
+          var firstVisible = null;
+          Array.prototype.forEach.call(localSelect.options, function (option) {
+            var show = option.dataset.localKind === kind;
+            option.hidden = !show;
+            option.disabled = !show;
+            if (show && !firstVisible) firstVisible = option;
+          });
+          if (localSelect.selectedOptions.length && localSelect.selectedOptions[0].hidden && firstVisible) {
+            localSelect.value = firstVisible.value;
+          }
+        }
+        if (localType && localSelect) {
+          localType.addEventListener("change", filterLocalOptions);
+          filterLocalOptions();
+        }
+        var historySearch = document.querySelector(".js-network-history-search");
+        if (historySearch) {
+          historySearch.addEventListener("input", function () {
+            var term = historySearch.value.trim().toLowerCase();
+            document.querySelectorAll("[data-network-history-item]").forEach(function (item) {
+              item.hidden = term && !item.textContent.toLowerCase().includes(term);
+            });
+          });
+        }
+        function prepareNetworkPrint(keys) {
+          var selected = new Set(keys || []);
+          document.querySelectorAll("[data-network-print-local]").forEach(function (row) {
+            row.classList.toggle("is-print-hidden", selected.size > 0 && !selected.has(row.dataset.networkPrintLocal));
+          });
+          document.body.classList.add("printing-network-report");
+          window.setTimeout(function () { window.print(); }, 180);
+        }
+        window.addEventListener("afterprint", function () {
+          document.body.classList.remove("printing-network-report");
+          document.querySelectorAll("[data-network-print-local]").forEach(function (row) {
+            row.classList.remove("is-print-hidden");
+          });
+        });
+        document.querySelectorAll("[data-network-print-one]").forEach(function (button) {
+          button.addEventListener("click", function () {
+            prepareNetworkPrint([button.dataset.networkPrintOne]);
+          });
+        });
+        document.querySelectorAll("[data-network-print]").forEach(function (button) {
+          button.addEventListener("click", function () {
+            if (button.dataset.networkPrint === "all") {
+              prepareNetworkPrint([]);
+              return;
+            }
+            var keys = Array.from(document.querySelectorAll("[data-network-print-pick]:checked")).map(function (input) {
+              return input.value;
+            });
+            if (!keys.length) {
+              alert("Marque pelo menos um CD ou loja para imprimir.");
+              return;
+            }
+            prepareNetworkPrint(keys);
+          });
+        });
+        document.addEventListener("click", function (event) {
+          var closeLink = event.target.closest("#paletes-rede-modal .network-pallet-close-x");
+          if (closeLink) {
+            event.preventDefault();
+            var modal = document.querySelector("#paletes-rede-modal");
+            if (modal) modal.remove();
+            window.history.pushState({}, "", closeLink.href);
+            return;
+          }
+          var modalLayer = event.target.closest("#paletes-rede-modal");
+          if (event.target.id === "paletes-rede-modal" && modalLayer) {
+            event.preventDefault();
+            modalLayer.remove();
+          }
+        });
+        document.addEventListener("keydown", function (event) {
+          if (event.key === "Escape") {
+            var modal = document.querySelector("#paletes-rede-modal");
+            if (modal) modal.remove();
+          }
+        });
+      })();
+    </script>
+  {% endif %}

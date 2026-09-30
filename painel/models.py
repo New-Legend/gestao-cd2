@@ -1739,3 +1739,286 @@ class MelhoriaSistema(BaseOperacional):
 
     def __str__(self):
         return f"{self.get_area_display()} - {self.titulo}"
+
+
+class TmsVeiculo(models.Model):
+    """Capacidade física do veículo — espelho de tms_veiculos do Worker."""
+
+    id = models.CharField(max_length=80, primary_key=True)
+    placa = models.CharField(max_length=20)
+    capacidade_max_kg = models.FloatField(default=0)
+    capacidade_max_pallets = models.PositiveIntegerField(default=0)
+    capacidade_max_m3 = models.FloatField(default=0)
+    ativo = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = "tms_veiculos"
+
+    def __str__(self):
+        return self.placa
+
+
+class TmsViagem(models.Model):
+    """Viagem TMS — espelho reduzido de tms_viagens usado pela Central de Expedição."""
+
+    STATUS_LOGISTICO = [
+        ("em_patio", "Em pátio"),
+        ("em_transito", "Em trânsito"),
+        ("em_descarregamento", "Em descarregamento"),
+        ("em_transito_retorno", "Em trânsito de retorno"),
+        ("retornou_base", "Retornou à base"),
+    ]
+
+    motorista_nome = models.CharField(max_length=160, blank=True, default="")
+    veiculo_id = models.CharField(max_length=80, blank=True, default="")
+    loja_codigo = models.CharField(max_length=40, blank=True, default="")
+    loja_nome = models.CharField(max_length=160, blank=True, default="")
+    origem_cd = models.CharField(max_length=7, blank=True, default="")
+    cd_atual = models.CharField(max_length=7, blank=True, default="")
+    status = models.CharField(max_length=30, default="atribuida")
+    status_logistico = models.CharField(max_length=40, choices=STATUS_LOGISTICO, default="em_patio")
+    peso_total_kg = models.FloatField(default=0)
+    volume_total_m3 = models.FloatField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "tms_viagens"
+        ordering = ["created_at", "id"]
+
+    def __str__(self):
+        return f"Viagem #{self.pk} · {self.loja_codigo}"
+
+
+class TmsViagemParada(models.Model):
+    id = models.CharField(max_length=80, primary_key=True)
+    viagem = models.ForeignKey(TmsViagem, related_name="paradas", on_delete=models.CASCADE)
+    ordem = models.PositiveIntegerField(default=1)
+    romaneio_id = models.IntegerField(null=True, blank=True)
+    paletes = models.PositiveIntegerField(default=0)
+    status = models.CharField(max_length=40, default="pendente")
+
+    class Meta:
+        db_table = "tms_viagem_paradas"
+        ordering = ["ordem", "id"]
+
+
+class TmsGeofenceEvento(models.Model):
+    viagem = models.ForeignKey(TmsViagem, related_name="eventos_geofence", on_delete=models.CASCADE)
+    geofence_tipo = models.CharField(max_length=20, default="LOJA")
+    loja_codigo = models.CharField(max_length=40, blank=True, default="")
+    acao = models.CharField(max_length=10)
+    ocorreu_em = models.DateTimeField()
+
+    class Meta:
+        db_table = "logistica_geofence_eventos"
+        ordering = ["-ocorreu_em", "-id"]
+
+
+class TmsRomaneio(models.Model):
+    """Romaneio TMS — tradução de tms_romaneios (Worker)."""
+
+    numero_romaneio = models.CharField(max_length=40, unique=True)
+    data = models.DateField()
+    hora = models.CharField(max_length=8, blank=True, default="")
+    cd_origem = models.CharField(max_length=7, default="806")
+    loja_destino = models.CharField(max_length=160, blank=True, default="")
+    endereco_loja = models.CharField(max_length=240, blank=True, default="")
+    motorista = models.CharField(max_length=160, blank=True, default="")
+    placa = models.CharField(max_length=20, blank=True, default="")
+    tipo_veiculo = models.CharField(max_length=80, blank=True, default="")
+    celular_motorista = models.CharField(max_length=30, blank=True, default="")
+    quantidade_nfes = models.PositiveIntegerField(default=0)
+    valor_total_carga = models.FloatField(default=0)
+    paletes_pbr = models.PositiveIntegerField(default=0)
+    paletes_chep = models.PositiveIntegerField(default=0)
+    paletes_descartavel = models.PositiveIntegerField(default=0)
+    total_paletes = models.PositiveIntegerField(default=0)
+    responsavel = models.CharField(max_length=160, blank=True, default="")
+    lacres = models.CharField(max_length=240, blank=True, default="")
+    observacoes = models.TextField(blank=True, default="")
+    status = models.CharField(max_length=40, default="rascunho")
+    km_saida = models.FloatField(default=0)
+    km_chegada = models.FloatField(default=0)
+    data_saida = models.DateTimeField(null=True, blank=True)
+    data_chegada_loja = models.DateTimeField(null=True, blank=True)
+    data_retorno_cd = models.DateTimeField(null=True, blank=True)
+    recebido_por = models.CharField(max_length=160, blank=True, default="")
+    criado_por = models.CharField(max_length=160, blank=True, default="")
+    atualizado_por = models.CharField(max_length=160, blank=True, default="")
+    ordem_entrega = models.PositiveIntegerField(default=0)
+    distancia_rota_km = models.FloatField(default=0)
+    tempo_rota_minutos = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "tms_romaneios"
+        ordering = ["-data", "-id"]
+
+    def __str__(self):
+        return self.numero_romaneio
+
+    @property
+    def km_rodado(self):
+        if self.km_chegada > self.km_saida > 0:
+            return self.km_chegada - self.km_saida
+        return 0
+
+
+class TmsDivergencia(models.Model):
+    romaneio = models.ForeignKey(TmsRomaneio, null=True, blank=True, related_name="divergencias", on_delete=models.SET_NULL)
+    data = models.DateField()
+    tipo = models.CharField(max_length=30, default="operacional")
+    severidade = models.CharField(max_length=20, default="normal")
+    descricao = models.TextField(blank=True, default="")
+    responsavel = models.CharField(max_length=160, blank=True, default="")
+    status = models.CharField(max_length=20, default="aberta")
+    solucao = models.TextField(blank=True, default="")
+    criado_por = models.CharField(max_length=160, blank=True, default="")
+    atualizado_por = models.CharField(max_length=160, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "tms_divergencias"
+        ordering = ["-data", "-id"]
+
+
+class TmsDevolucao(models.Model):
+    romaneio = models.ForeignKey(TmsRomaneio, related_name="devolucoes", on_delete=models.CASCADE)
+    data = models.DateField()
+    tipo = models.CharField(max_length=30, default="parcial")
+    motivo = models.CharField(max_length=240, blank=True, default="")
+    quantidade_nfes = models.PositiveIntegerField(default=0)
+    valor_devolvido = models.FloatField(default=0)
+    paletes_pbr = models.PositiveIntegerField(default=0)
+    paletes_chep = models.PositiveIntegerField(default=0)
+    paletes_descartavel = models.PositiveIntegerField(default=0)
+    descricao = models.TextField(blank=True, default="")
+    responsavel = models.CharField(max_length=160, blank=True, default="")
+    status = models.CharField(max_length=20, default="aberta")
+    criado_por = models.CharField(max_length=160, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "tms_devolucoes"
+        ordering = ["-data", "-id"]
+
+
+class TmsRota(models.Model):
+    cd_origem = models.CharField(max_length=7, default="806")
+    loja_codigo = models.CharField(max_length=40, blank=True, default="")
+    loja_nome = models.CharField(max_length=160, blank=True, default="")
+    endereco = models.CharField(max_length=240, blank=True, default="")
+    cep_origem = models.CharField(max_length=12, blank=True, default="")
+    cep_destino = models.CharField(max_length=12, blank=True, default="")
+    distancia_km = models.FloatField(default=0)
+    tempo_previsto_minutos = models.PositiveIntegerField(default=0)
+    ativa = models.BooleanField(default=True)
+    observacao = models.TextField(blank=True, default="")
+    latitude = models.FloatField(null=True, blank=True)
+    longitude = models.FloatField(null=True, blank=True)
+    criado_por = models.CharField(max_length=160, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "tms_rotas"
+        ordering = ["cd_origem", "loja_nome", "id"]
+
+
+class TmsGeofence(models.Model):
+    id = models.CharField(max_length=80, primary_key=True)
+    nome = models.CharField(max_length=160)
+    tipo = models.CharField(max_length=20, default="LOJA")
+    latitude = models.FloatField()
+    longitude = models.FloatField()
+    raio_metros = models.PositiveIntegerField(default=300)
+    ativo = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "tms_geofences"
+        ordering = ["tipo", "id"]
+
+
+class TmsTelemetria(models.Model):
+    viagem = models.ForeignKey(TmsViagem, related_name="telemetrias", on_delete=models.CASCADE)
+    placa = models.CharField(max_length=20, blank=True, default="")
+    latitude = models.FloatField()
+    longitude = models.FloatField()
+    ocorreu_em = models.DateTimeField()
+
+    class Meta:
+        db_table = "tms_telemetria"
+        ordering = ["-ocorreu_em", "-id"]
+
+
+class TmsProdutoCapacidade(models.Model):
+    """Base interna de peso/cubagem por fardo — motor de /tms/viagens/capacidade/."""
+
+    ean = models.CharField(max_length=14, unique=True)
+    descricao = models.CharField(max_length=180)
+    peso_kg_fardo = models.FloatField(default=0)
+    volume_m3_fardo = models.FloatField(default=0)
+    paletes_por_fardo = models.FloatField(default=0.05)
+
+    class Meta:
+        db_table = "tms_produto_capacidade"
+
+
+class WmsPosicao(models.Model):
+    cd_codigo = models.CharField(max_length=7, default="806")
+    rua = models.CharField(max_length=10)
+    nivel = models.PositiveIntegerField(default=1)
+    codigo = models.CharField(max_length=20)
+    status = models.CharField(max_length=20, default="LIVRE")
+    produto_ean = models.CharField(max_length=20, blank=True, default="")
+    produto_nome = models.CharField(max_length=180, blank=True, default="")
+    quantidade_paletes = models.FloatField(default=0)
+
+    class Meta:
+        db_table = "wms_posicoes"
+        ordering = ["rua", "nivel", "codigo"]
+
+
+class YmsDoca(models.Model):
+    cd_codigo = models.CharField(max_length=7, default="806")
+    codigo = models.CharField(max_length=20)
+    nome = models.CharField(max_length=80, blank=True, default="")
+    status = models.CharField(max_length=40, default="livre")
+    ativa = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = "yms_docas"
+        ordering = ["codigo"]
+
+
+class YmsMovimentacao(models.Model):
+    cd_codigo = models.CharField(max_length=7, default="806")
+    doca = models.ForeignKey(YmsDoca, null=True, blank=True, related_name="movimentacoes", on_delete=models.SET_NULL)
+    placa = models.CharField(max_length=20)
+    transportadora = models.CharField(max_length=160, blank=True, default="")
+    motorista = models.CharField(max_length=160, blank=True, default="")
+    nota_fiscal = models.CharField(max_length=40, blank=True, default="")
+    tipo_operacao = models.CharField(max_length=30, default="descarregamento")
+    fluxo = models.CharField(max_length=30, default="expedicao")
+    status = models.CharField(max_length=40, default="aguardando_doca")
+    chegada_em = models.DateTimeField()
+    doca_atribuida_em = models.DateTimeField(null=True, blank=True)
+    saida_em = models.DateTimeField(null=True, blank=True)
+    criado_por = models.CharField(max_length=160, blank=True, default="")
+
+    class Meta:
+        db_table = "yms_movimentacoes"
+        ordering = ["chegada_em", "id"]
+
+
+class PageBuilderTela(models.Model):
+    nome = models.CharField(max_length=120)
+    fonte = models.CharField(max_length=60)
+    criado_por = models.CharField(max_length=160, blank=True, default="")
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "page_builder_telas"
+        ordering = ["-criado_em"]

@@ -5,21 +5,32 @@
 {% block page_subtitle %}{{ hub.description }}{% endblock %}
 
 {% block content %}
-<section class="panel fusao-admin-panel module-hub">
-  <div class="panel-title">
-    <div>
-      <h2>{{ hub.title }}</h2>
-      <p>{{ hub.description }}</p>
+<div class="gc2-page" id="gc2CentralHub">
+  <section class="gc2-canvas">
+    <div class="gc2-heading">
+      <div class="gc2-heading-inner">
+        <div>
+          <span class="erp-eyebrow">Central · CD {{ cd_unidade_label }}</span>
+          <h1>{{ hub.title }}</h1>
+          <p>{{ hub.description }}</p>
+        </div>
+        <span class="metric-pill">{{ hub.cards|length }} atalho(s)</span>
+      </div>
     </div>
-  </div>
-  <div class="cards fusao-card-grid frota-hub-grid">
-    {% for card in hub.cards %}
-      <a class="card frota-hub-card home-action-card" href="{{ card.url }}">
-        <span class="nav-icon">{{ card.icon }}</span>
-        <strong>{{ card.title }}</strong>
-        <small>{{ card.description }}</small>
-      </a>
-    {% endfor %}
-  </div>
-</section>
+    <div class="gc2-balloon-grid">
+      {% for card in hub.cards %}
+        <a class="gc2-balloon" href="{{ card.url }}">
+          <span class="gc2-balloon-icon" aria-hidden="true">{{ card.icon }}</span>
+          <strong>{{ card.title }}</strong>
+          <small>{{ card.description }}</small>
+        </a>
+      {% empty %}
+        <article class="gc2-metric" style="cursor:default">
+          <span>Sem atalhos</span>
+          <strong style="font-size:16px">Nenhum cartão disponível nesta central.</strong>
+        </article>
+      {% endfor %}
+    </div>
+  </section>
+</div>
 {% endblock %}

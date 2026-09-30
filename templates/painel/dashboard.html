@@ -1,216 +1,581 @@
 ﻿{% extends "painel/base.html" %}
 {% block title %}{{ ui_labels.dashboard }} - Gestão CD{% endblock %}
 {% block page_title %}{{ ui_labels.dashboard }}{% endblock %}
+{% block body_class %}gc2-home-screen{% endblock %}
 {% block content %}
-  <section class="hero rounded-xl bg-gradient-to-r from-[#061d37] to-[#073b73] text-white p-6 mb-4 shadow-md">
-    <p class="m-0 text-xs font-extrabold uppercase tracking-[0.2em] text-[#ffd21f]">Rede Krill · CD {{ cd_unidade_label }}</p>
-    <h2 class="m-0 mt-2 text-[clamp(24px,4vw,40px)] font-extrabold text-white">Central Operacional</h2>
-    <p class="m-0 mt-2 max-w-2xl text-sm text-slate-200">Atalhos, frota, colaboradores e alertas no mesmo painel — lógica Django intacta, visual Gestão CD.</p>
-  </section>
+<style>
+  .gc2-home { --gc-ink:#020617; --gc-muted:#475569; --gc-line:#e2e8f0; --gc-blue:#073b73; }
+  .gc2-home .home-canvas-shell { padding:0.2cm 0; }
+  .gc2-home .home-canvas-box {
+    background:#fff; border:1px solid #e2e8f0; border-radius:16px; padding:18px 20px;
+    box-shadow:0 10px 28px rgba(15,23,42,.08);
+  }
+  .gc2-home .home-navigation-heading {
+    position:relative; overflow:hidden; margin:0 0 18px; background:#fff;
+    border:1px solid #e2e8f0; border-radius:12px; box-shadow:0 3px 10px rgba(15,23,42,.04);
+  }
+  .gc2-home .home-navigation-heading::before {
+    content:""; position:absolute; top:0; left:0; width:100%; height:3px;
+    background:linear-gradient(90deg,#073b73,#061d37,transparent);
+  }
+  .gc2-home .home-navigation-heading > div { padding:16px 18px; }
+  .gc2-home .erp-eyebrow {
+    display:inline-block; margin-bottom:6px; color:#073b73; font-size:11px; font-weight:800;
+    letter-spacing:.14em; text-transform:uppercase;
+  }
+  .gc2-home .home-navigation-heading h1 {
+    margin:0; color:#0f172a; font-size:clamp(22px,3vw,30px); font-weight:800; line-height:1.15;
+  }
+  .gc2-home .home-navigation-heading p { margin:6px 0 0; color:#64748b; font-size:14px; }
+  .gc2-home .home-dashboard-layout {
+    display:grid; grid-template-columns:minmax(220px,.9fr) minmax(0,1.5fr); gap:18px; align-items:start;
+  }
+  .gc2-home .home-dashboard-side { display:grid; gap:14px; min-width:0; }
+  .gc2-home .home-side-shell {
+    border-radius:14px; padding:1px;
+    background:linear-gradient(90deg,#2563eb,#38bdf8);
+    box-shadow:0 4px 14px rgba(15,23,42,.06);
+  }
+  .gc2-home .home-side-panel {
+    background:#fff; border-radius:13px; padding:14px 16px; color:#0f172a;
+  }
+  .gc2-home .home-side-heading h2 { margin:0; font-size:17px; font-weight:800; color:#0f172a; }
+  .gc2-home .home-side-heading p { margin:4px 0 0; font-size:12px; color:#64748b; }
+  .gc2-home .home-side-actions { display:grid; gap:2px; margin-top:10px; }
+  .gc2-home .home-side-action {
+    display:flex; align-items:center; gap:10px; padding:9px 10px; border-radius:8px;
+    border-bottom:1px solid #f1f5f9; color:#475569; text-decoration:none; font-size:13px; font-weight:700;
+  }
+  .gc2-home .home-side-action:last-child { border-bottom:0; }
+  .gc2-home .home-side-action:hover { background:#f8fafc; color:#073b73; }
+  .gc2-home .home-side-action .nav-icon {
+    display:grid; place-items:center; width:28px; height:28px; border-radius:8px;
+    background:#061d37; color:#ffd21f; flex:0 0 28px; font-size:11px;
+  }
+  .gc2-home .home-side-row {
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    padding:10px 0; border-bottom:1px solid #f1f5f9;
+  }
+  .gc2-home .home-side-row:last-child { border-bottom:0; }
+  .gc2-home .home-side-row strong { display:block; font-size:13px; color:#0f172a; }
+  .gc2-home .home-side-row small { display:block; margin-top:2px; font-size:11px; color:#64748b; }
+  .gc2-home .home-side-row b { color:#073b73; font-size:20px; line-height:1; }
+  .gc2-home .home-centrals-grid {
+    display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; align-items:start;
+  }
+  .gc2-home .home-central-card {
+    position:relative; overflow:hidden; background:#fff; border:1px solid #e2e8f0;
+    border-radius:22px; box-shadow:0 8px 22px rgba(15,23,42,.07);
+  }
+  .gc2-home .home-central-card::before {
+    content:""; position:absolute; top:0; left:0; width:100%; height:4px;
+    background:linear-gradient(90deg,#073b73,#061d37,transparent);
+  }
+  .gc2-home .home-central-trigger {
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    width:100%; min-height:96px; padding:18px 18px; border:0; background:transparent; cursor:pointer; text-align:left;
+  }
+  .gc2-home .home-central-trigger-main { display:flex; align-items:center; gap:12px; min-width:0; }
+  .gc2-home .home-central-icon {
+    display:grid; place-items:center; width:48px; height:48px; border-radius:999px;
+    background:linear-gradient(145deg,#061d37,#073b73); color:#ffd21f; font-size:14px; font-weight:800; flex:0 0 48px;
+    box-shadow:0 6px 14px rgba(6,29,55,.18);
+  }
+  .gc2-home .home-central-copy { min-width:0; }
+  .gc2-home .home-central-copy small {
+    display:block; color:#94a3b8; font-size:10px; font-weight:800; letter-spacing:.08em; text-transform:uppercase;
+  }
+  .gc2-home .home-central-copy strong {
+    display:block; margin-top:2px; color:#0f172a; font-size:14px; font-weight:700; line-height:1.25;
+  }
+  .gc2-home .home-central-chevron { color:#cbd5e1; transition:transform .15s ease; }
+  .gc2-home .home-central-card.is-open .home-central-chevron { transform:rotate(180deg); color:#073b73; }
+  .gc2-home .home-central-collapse { display:none; border-top:1px solid #f1f5f9; }
+  .gc2-home .home-central-collapse.show { display:block; }
+  .gc2-home .home-central-body { padding:8px; }
+  .gc2-home .home-central-links { display:grid; gap:2px; padding:2px 8px 8px; }
 
-  <section class="panel module-hub simplified-home fusao-admin-panel">
-    <div class="panel-title">
-      <div>
-        <h2>Entradas principais</h2>
-        <p>Use os cards abaixo como porta de entrada. As telas antigas continuam existindo, organizadas nas centrais.</p>
+  .gc2-home .home-central-group { margin-bottom:4px; }
+  .gc2-home .home-central-group-trigger {
+    display:flex; justify-content:space-between; align-items:center; width:100%;
+    padding:8px 10px; border:0; border-radius:8px; background:transparent; cursor:pointer;
+    color:#64748b; font-size:11px; font-weight:800; letter-spacing:.06em; text-transform:uppercase;
+  }
+  .gc2-home .home-central-group-trigger:hover { background:#f8fafc; color:#0f172a; }
+  .gc2-home .home-central-group-panel { display:none; padding:2px 8px 8px 12px; }
+  .gc2-home .home-central-group-panel.is-open { display:grid; gap:2px; }
+  .gc2-home .home-central-link {
+    display:block; padding:8px 10px; border-radius:8px; color:#475569; text-decoration:none;
+    font-size:12px; font-weight:600;
+  }
+  .gc2-home .home-central-link:hover { background:#eff6ff; color:#073b73; }
+  .gc2-home .home-lower-panels { display:grid; gap:16px; margin-top:18px; }
+  .gc2-home .home-metrics-strip {
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:12px; margin-top:16px;
+  }
+  .gc2-home .home-metric-card {
+    background:#fff; border:1px solid #e2e8f0; border-radius:18px; border-top:4px solid #061d37;
+    padding:14px 16px; box-shadow:0 8px 20px rgba(6,29,55,.05); cursor:pointer; text-align:left; width:100%;
+  }
+  .gc2-home .home-metric-card span {
+    display:block; color:#64748b; font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.04em;
+  }
+  .gc2-home .home-metric-card strong { display:block; margin-top:6px; color:#061d37; font-size:24px; line-height:1.1; }
+  .gc2-home .gc2-modal[hidden] { display:none !important; }
+  .gc2-home .gc2-modal {
+    position:fixed; inset:0; z-index:80; display:grid; place-items:end center;
+    padding:16px; background:rgba(2,6,23,.48);
+  }
+  .gc2-home .gc2-modal-dialog {
+    width:min(440px,100%); max-height:min(70vh,560px); overflow:auto;
+    background:#fff; border:1px solid #e2e8f0; border-radius:20px 20px 16px 16px;
+    box-shadow:0 24px 60px rgba(2,6,23,.28); padding:16px 16px 18px;
+  }
+  .gc2-home .gc2-modal-header {
+    display:flex; align-items:flex-start; justify-content:space-between; gap:12px;
+    padding-bottom:10px; border-bottom:1px solid #eef2f7; margin-bottom:12px;
+  }
+  .gc2-home .gc2-modal-header h2 { margin:0; font-size:18px; color:#061d37; }
+  .gc2-home .gc2-modal-close {
+    width:36px; height:36px; border:0; border-radius:10px; background:#f1f5f9; color:#061d37;
+    font-size:22px; line-height:1; cursor:pointer;
+  }
+  .gc2-home .gc2-modal-list { display:grid; gap:8px; }
+  .gc2-home .gc2-modal-row {
+    display:flex; justify-content:space-between; gap:10px; align-items:center;
+    padding:12px 12px; border:1px solid #e2e8f0; border-radius:14px; background:#f8fafc;
+  }
+  .gc2-home .gc2-modal-row span { color:#64748b; font-size:12px; font-weight:700; }
+  .gc2-home .gc2-modal-row strong { color:#061d37; font-size:20px; }
+  @media (max-width:1100px) {
+    .gc2-home .home-dashboard-layout { grid-template-columns:1fr; }
+    .gc2-home .home-centrals-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+  }
+  @media (max-width:640px) {
+    .gc2-home .home-canvas-shell { padding:0; }
+    .gc2-home .home-canvas-box { padding:12px; border-radius:14px; }
+    .gc2-home .home-navigation-heading { margin-bottom:12px; border-radius:14px; }
+    .gc2-home .home-navigation-heading > div { padding:14px; }
+    .gc2-home .home-navigation-heading h1 { font-size:22px; }
+    .gc2-home .home-navigation-heading p { font-size:13px; line-height:1.4; }
+    .gc2-home .home-dashboard-layout { gap:12px; }
+    .gc2-home .home-dashboard-side { gap:12px; }
+    .gc2-home .home-side-panel { padding:14px; }
+    .gc2-home .home-side-heading h2 { font-size:16px; }
+    .gc2-home .home-centrals-grid { grid-template-columns:1fr; gap:12px; }
+    .gc2-home .home-central-card { border-radius:20px; }
+    .gc2-home .home-central-trigger { min-height:84px; padding:14px 14px; }
+    .gc2-home .home-central-icon { width:44px; height:44px; flex-basis:44px; }
+    .gc2-home .home-central-copy strong { font-size:15px; }
+    .gc2-home .home-metrics-strip { grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-top:12px; }
+    .gc2-home .home-metric-card { border-radius:16px; padding:12px; }
+    .gc2-home .home-metric-card strong { font-size:22px; }
+    .gc2-home .home-lower-panels { gap:12px; margin-top:14px; }
+    .gc2-home .gc2-modal { place-items:end stretch; padding:0; }
+    .gc2-home .gc2-modal-dialog { width:100%; border-radius:18px 18px 0 0; max-height:78vh; }
+  }
+</style>
+
+<div class="gc2-home" data-ui-home-layout="boxed">
+  <section class="home-navigation-hub home-canvas-shell" aria-labelledby="home-navigation-title">
+    <div class="home-canvas-box">
+      <div class="home-navigation-heading">
+        <div>
+          <span class="erp-eyebrow">Central de operações · CD {{ cd_unidade_label }}</span>
+          <h1 id="home-navigation-title">Gestão CD</h1>
+          <p>Escolha uma rotina para trabalhar no CD {{ cd_unidade_label }}. Abra uma central para ver as opções.</p>
+        </div>
       </div>
-    </div>
-    <div class="module-hub-grid fusao-card-grid">
-      {% for action in home_actions %}
-        <a class="module-hub-card home-action-card {{ action.tone }}" href="{{ action.url }}">
-          <span class="nav-icon inline-grid h-9 w-9 place-items-center rounded-lg bg-[#061d37] text-[#ffd21f]">{{ action.icon }}</span>
-          <strong>{{ action.title }}</strong>
-          <small>{{ action.description }}</small>
-        </a>
-      {% empty %}
-        <article class="module-hub-card">
-          <strong>Nenhuma central liberada</strong>
-          <small>Peça ao usuário master para revisar suas permissões.</small>
-        </article>
-      {% endfor %}
+
+      <div class="home-dashboard-layout">
+        <aside class="home-dashboard-side" aria-label="Ações rápidas e indicadores">
+          <div class="home-side-shell">
+            <section class="home-side-panel">
+              <div class="home-side-heading">
+                <span class="erp-eyebrow">Operação rápida</span>
+                <h2>Ações rápidas</h2>
+                <p>Atalhos do CD {{ cd_unidade_label }}.</p>
+              </div>
+              <div class="home-side-actions">
+                {% for action in home_actions %}
+                  <a class="home-side-action" href="{{ action.url }}">
+                    <span class="nav-icon" aria-hidden="true">{{ action.icon }}</span>
+                    <span>{{ action.title }}</span>
+                  </a>
+                {% empty %}
+                  <p class="muted" style="margin:0">Nenhuma rotina disponível para este perfil.</p>
+                {% endfor %}
+              </div>
+            </section>
+          </div>
+
+          {% if cards %}
+            <div class="home-side-shell">
+              <section class="home-side-panel">
+                <div class="home-side-heading">
+                  <span class="erp-eyebrow">Indicadores</span>
+                  <h2>Resumo rápido</h2>
+                  <p>{{ cards|length }} métrica(s) do contexto atual.</p>
+                </div>
+                {% for label, value in cards %}
+                  <div class="home-side-row">
+                    <span><strong>{{ label }}</strong></span>
+                    <b>{{ value }}</b>
+                  </div>
+                {% endfor %}
+              </section>
+            </div>
+          {% endif %}
+
+          {% if show_frota_panel %}
+            <div class="home-side-shell">
+              <section class="home-side-panel">
+                <div class="home-side-heading">
+                  <span class="erp-eyebrow">Frota</span>
+                  <h2>Painel da frota</h2>
+                  <p>Check-lists, retornos e manutenção.</p>
+                </div>
+                <div class="home-side-row"><span><strong>Check-lists hoje</strong></span><b>{{ frota_panel.checklists }}</b></div>
+                <div class="home-side-row"><span><strong>Saídas</strong></span><b>{{ frota_panel.saidas }}</b></div>
+                <div class="home-side-row"><span><strong>Retornos</strong></span><b>{{ frota_panel.retornos }}</b></div>
+                <div class="home-side-row"><span><strong>Retornos pendentes</strong></span><b>{{ frota_panel.retornos_pendentes }}</b></div>
+                <div class="home-side-row"><span><strong>Manutenção</strong></span><b>{{ frota_panel.manutencoes }}</b></div>
+                {% if frota_panel.show_intercalacoes %}
+                  <div class="home-side-row"><span><strong>Intercalações</strong></span><b>{{ frota_panel.intercalacoes }}</b></div>
+                {% endif %}
+                <div style="margin-top:12px">
+                  <a class="btn secondary" href="{% url 'module_list' 'checklist_frota' %}?painel=frota">Abrir frota</a>
+                </div>
+              </section>
+            </div>
+          {% endif %}
+        </aside>
+
+        <div class="home-dashboard-central-column">
+          <section class="home-centrals" aria-label="Centrais do sistema">
+            <div class="home-centrals-grid" id="homeCentralsAccordion">
+              {% for group, nav in navigation_groups.items %}
+                <article class="home-central-card" data-home-central-card>
+                  <h3 class="m-0">
+                    <button type="button" class="home-central-trigger collapsed" data-home-central-trigger aria-expanded="false" aria-controls="home-central-{{ forloop.counter }}">
+                      <span class="home-central-trigger-main">
+                        <span class="home-central-icon" aria-hidden="true">{{ forloop.counter }}</span>
+                        <span class="home-central-copy">
+                          <small>Central</small>
+                          <strong>{{ group }}</strong>
+                        </span>
+                      </span>
+                      <span class="home-central-chevron" aria-hidden="true">▾</span>
+                    </button>
+                  </h3>
+                  <div id="home-central-{{ forloop.counter }}" class="home-central-collapse" aria-hidden="true">
+                    <div class="home-central-body">
+                      <div class="home-central-links">
+                        {% for module in nav.modules %}
+                          {% if module.key == "checklist_frota" %}
+                            {% if can_driver_checklist %}
+                              <a class="home-central-link" href="{% url 'module_list' module.key %}">Check-list do Motorista</a>
+                            {% endif %}
+                            {% if can_frota_panel and not is_motorista %}
+                              <a class="home-central-link" href="{% url 'module_list' module.key %}?painel=frota">{{ ui_labels.painel_frota }}</a>
+                            {% endif %}
+                          {% else %}
+                            <a class="home-central-link" href="{% url 'module_list' module.key %}">{{ module.title }}</a>
+                          {% endif %}
+                        {% endfor %}
+                        {% for hub in nav.hubs %}
+                          <a class="home-central-link" href="{% url 'central_personalizada' hub.key %}">{{ hub.title }}</a>
+                        {% endfor %}
+                      </div>
+                    </div>
+                  </div>
+                </article>
+              {% empty %}
+                {% for action in home_actions %}
+                  <article class="home-central-card">
+                    <a class="home-central-trigger" href="{{ action.url }}" style="text-decoration:none">
+                      <span class="home-central-trigger-main">
+                        <span class="home-central-icon" aria-hidden="true">{{ action.icon }}</span>
+                        <span class="home-central-copy">
+                          <small>{{ action.tone|default:"central"|upper }}</small>
+                          <strong>{{ action.title }}</strong>
+                        </span>
+                      </span>
+                      <span class="home-central-chevron" aria-hidden="true">→</span>
+                    </a>
+                  </article>
+                {% empty %}
+                  <article class="home-central-card">
+                    <div class="home-central-trigger">
+                      <span class="home-central-copy">
+                        <strong>Nenhuma central liberada</strong>
+                        <small style="text-transform:none;letter-spacing:0;font-weight:600">Peça ao usuário master para revisar suas permissões.</small>
+                      </span>
+                    </div>
+                  </article>
+                {% endfor %}
+              {% endfor %}
+
+              {% if can_frota_hub and not is_motorista %}
+                <article class="home-central-card">
+                  <a class="home-central-trigger" href="{% url 'frota_hub' %}" style="text-decoration:none">
+                    <span class="home-central-trigger-main">
+                      <span class="home-central-icon" aria-hidden="true">CF</span>
+                      <span class="home-central-copy">
+                        <small>Frota</small>
+                        <strong>Central da Frota</strong>
+                      </span>
+                    </span>
+                    <span class="home-central-chevron" aria-hidden="true">→</span>
+                  </a>
+                </article>
+              {% endif %}
+            </div>
+          </section>
+
+          {% if cards %}
+            <div class="home-metrics-strip" aria-label="Indicadores rápidos">
+              {% for label, value in cards %}
+                <button type="button" class="home-metric-card" data-gc2-open-metrics aria-haspopup="dialog">
+                  <span>{{ label }}</span>
+                  <strong>{{ value }}</strong>
+                </button>
+              {% endfor %}
+            </div>
+          {% endif %}
+        </div>
+      </div>
     </div>
   </section>
 
   {% if cards %}
-    <section class="panel compact-home-metrics mt-4">
-      <div class="panel-title">
-        <div>
-          <h2>Indicadores rápidos</h2>
-          <p>{{ cards|length }} métrica(s) do contexto atual.</p>
+    <div class="gc2-modal" id="gc2MetricsModal" hidden data-gc2-metrics-modal>
+      <div class="gc2-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="gc2MetricsTitle">
+        <div class="gc2-modal-header">
+          <div>
+            <span class="erp-eyebrow">CD {{ cd_unidade_label }}</span>
+            <h2 id="gc2MetricsTitle">Indicadores do dia</h2>
+          </div>
+          <button class="gc2-modal-close" type="button" data-gc2-close-metrics aria-label="Fechar">×</button>
+        </div>
+        <div class="gc2-modal-list">
+          {% for label, value in cards %}
+            <div class="gc2-modal-row">
+              <span>{{ label }}</span>
+              <strong>{{ value }}</strong>
+            </div>
+          {% endfor %}
         </div>
       </div>
-      <div class="fusao-card-grid">
-        {% for label, value in cards %}
-          <article class="card fusao-metric-card">
-            <span>{{ label }}</span>
-            <strong>{{ value }}</strong>
-          </article>
-        {% endfor %}
-      </div>
-    </section>
-  {% endif %}
-
-  {% if show_colaboradores_panel %}
-    <section class="panel mt-4">
-      <div class="panel-title">
-        <div>
-          <h2>Painel de colaboradores</h2>
-          <p>Férias, quadro do dia e funções conforme a permissão liberada.</p>
-        </div>
-        {% if colaboradores_panel.ferias or colaboradores_panel.heatmap %}
-          <a class="btn secondary" href="{% url 'module_list' 'ferias_colaboradores' %}">Abrir férias</a>
-        {% endif %}
-      </div>
-      <div class="dashboard-focus-grid fusao-card-grid">
-        {% if colaboradores_panel.ferias %}
-          <article class="compact-panel">
-            <h3>Férias e retornos próximos</h3>
-            <div class="heatmap-list">
-              {% for row in colaboradores_panel.ferias %}
-                <div class="heatmap-list-item">
-                  <span>{{ row.colaborador }} · {{ row.get_status_display }}</span>
-                  <strong>{{ row.retorno_previsto|date:"d/m" }}</strong>
-                </div>
-              {% endfor %}
-            </div>
-          </article>
-        {% endif %}
-        {% if colaboradores_panel.faltas %}
-          <article class="compact-panel">
-            <h3>Faltas no quadro</h3>
-            <div class="heatmap-list">
-              {% for item in colaboradores_panel.faltas %}
-                <div class="heatmap-list-item">
-                  <span>{{ item.row.get_setor_display }} · {{ item.row.funcao }}</span>
-                  <strong>{{ item.falta }}</strong>
-                </div>
-              {% endfor %}
-            </div>
-          </article>
-        {% endif %}
-        {% if colaboradores_panel.funcoes %}
-          <article class="compact-panel">
-            <h3>Funções do turno</h3>
-            <div class="heatmap-list">
-              {% for row in colaboradores_panel.funcoes %}
-                <div class="heatmap-list-item">
-                  <span>{{ row.get_setor_display }} · {{ row.nome }}</span>
-                  <strong>{{ row.quadro_padrao }}</strong>
-                </div>
-              {% endfor %}
-            </div>
-          </article>
-        {% endif %}
-        {% if colaboradores_panel.heatmap %}
-          <article class="compact-panel">
-            <h3>Mapa de calor</h3>
-            <p class="muted">{{ colaboradores_panel.heatmap.total_colaboradores }} colaborador(es) no período de {{ colaboradores_panel.heatmap.periodo_inicio|date:"d/m" }} a {{ colaboradores_panel.heatmap.periodo_fim|date:"d/m" }}.</p>
-            <a class="btn secondary" href="{% url 'module_list' 'ferias_colaboradores' %}">Ver mapa completo</a>
-          </article>
-        {% endif %}
-      </div>
-    </section>
-  {% endif %}
-
-  {% if show_frota_panel %}
-    <section class="panel mt-4">
-      <div class="panel-title">
-        <div>
-          <h2>Painel da frota</h2>
-          <p>Resumo rápido dos check-lists, retornos e manutenção.</p>
-        </div>
-        <a class="btn secondary" href="{% url 'module_list' 'checklist_frota' %}?painel=frota">Abrir frota</a>
-      </div>
-      <div class="fusao-card-grid">
-        <article class="card fusao-metric-card"><span>Check-lists hoje</span><strong>{{ frota_panel.checklists }}</strong></article>
-        <article class="card fusao-metric-card"><span>Saídas</span><strong>{{ frota_panel.saidas }}</strong></article>
-        <article class="card fusao-metric-card"><span>Retornos</span><strong>{{ frota_panel.retornos }}</strong></article>
-        <article class="card fusao-metric-card"><span>Retornos pendentes</span><strong>{{ frota_panel.retornos_pendentes }}</strong></article>
-        <article class="card fusao-metric-card"><span>Manutenção</span><strong>{{ frota_panel.manutencoes }}</strong></article>
-        {% if frota_panel.show_intercalacoes %}
-          <article class="card fusao-metric-card"><span>Intercalações pendentes</span><strong>{{ frota_panel.intercalacoes }}</strong></article>
-        {% endif %}
-      </div>
-    </section>
-  {% endif %}
-
-  {% if show_closure_panel or central_alertas %}
-    <div class="two-col mt-4">
-      {% if show_closure_panel %}
-        <section class="panel">
-          <div class="panel-title">
-            <div>
-              <h2>Checklist de fechamento</h2>
-              <p>Conferência rápida antes de encerrar a rotina do dia.</p>
-            </div>
-            <a class="btn secondary" href="{% url 'relatorios' %}?inicio={{ data }}&fim={{ data }}&tipo=geral">Ver relatório do dia</a>
-          </div>
-          <div class="table-wrap">
-            <table>
-              <thead><tr><th>Status</th><th>Item</th><th>Detalhe</th></tr></thead>
-              <tbody>
-                {% for item in checklist %}
-                  <tr>
-                    <td>{% if item.ok %}<span class="status-pill ok">OK</span>{% else %}<span class="status-pill paused">Pendente</span>{% endif %}</td>
-                    <td>{{ item.item }}</td>
-                    <td>{{ item.detalhe }}</td>
-                  </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      {% endif %}
-
-      {% if central_alertas %}
-        <section class="panel">
-          <div class="panel-title">
-            <div>
-              <h2>Central de alertas</h2>
-              <p>Notificações importantes do CD, com atalho para a tela correta.</p>
-            </div>
-          </div>
-          <div class="alert-center-list">
-            {% for alerta in central_alertas %}
-              <article class="alert-center-item {{ alerta.nivel }}">
-                <div class="alert-center-icon">!</div>
-                <div>
-                  <strong>{{ alerta.titulo }}</strong>
-                  <p>{{ alerta.texto }}</p>
-                  <small>{{ alerta.data|date:"d/m/Y" }}</small>
-                </div>
-                {% if alerta.url %}
-                  <a class="btn secondary small" href="{{ alerta.url }}">Abrir</a>
-                {% endif %}
-              </article>
-            {% endfor %}
-          </div>
-        </section>
-      {% endif %}
     </div>
   {% endif %}
 
-  {% if show_pendencias_panel %}
-    <section class="panel mt-4">
-      <div class="panel-title">
-        <div>
-          <h2>Pendências abertas</h2>
-          <p>Itens que ainda precisam de acompanhamento.</p>
+  <div class="home-lower-panels">
+    {% if show_colaboradores_panel %}
+      <section class="panel">
+        <div class="panel-title">
+          <div>
+            <h2>Painel de colaboradores</h2>
+            <p>Férias, quadro do dia e funções conforme a permissão liberada.</p>
+          </div>
+          {% if colaboradores_panel.ferias or colaboradores_panel.heatmap %}
+            <a class="btn secondary" href="{% url 'module_list' 'ferias_colaboradores' %}">Abrir férias</a>
+          {% endif %}
         </div>
-        <a class="btn secondary" href="{% url 'module_list' 'pendencias' %}">Abrir pendências</a>
+        <div class="dashboard-focus-grid fusao-card-grid">
+          {% if colaboradores_panel.ferias %}
+            <article class="compact-panel">
+              <h3>Férias e retornos próximos</h3>
+              <div class="heatmap-list">
+                {% for row in colaboradores_panel.ferias %}
+                  <div class="heatmap-list-item">
+                    <span>{{ row.colaborador }} · {{ row.get_status_display }}</span>
+                    <strong>{{ row.retorno_previsto|date:"d/m" }}</strong>
+                  </div>
+                {% endfor %}
+              </div>
+            </article>
+          {% endif %}
+          {% if colaboradores_panel.faltas %}
+            <article class="compact-panel">
+              <h3>Faltas no quadro</h3>
+              <div class="heatmap-list">
+                {% for item in colaboradores_panel.faltas %}
+                  <div class="heatmap-list-item">
+                    <span>{{ item.row.get_setor_display }} · {{ item.row.funcao }}</span>
+                    <strong>{{ item.falta }}</strong>
+                  </div>
+                {% endfor %}
+              </div>
+            </article>
+          {% endif %}
+          {% if colaboradores_panel.funcoes %}
+            <article class="compact-panel">
+              <h3>Funções do turno</h3>
+              <div class="heatmap-list">
+                {% for row in colaboradores_panel.funcoes %}
+                  <div class="heatmap-list-item">
+                    <span>{{ row.get_setor_display }} · {{ row.nome }}</span>
+                    <strong>{{ row.quadro_padrao }}</strong>
+                  </div>
+                {% endfor %}
+              </div>
+            </article>
+          {% endif %}
+          {% if colaboradores_panel.heatmap %}
+            <article class="compact-panel">
+              <h3>Mapa de calor</h3>
+              <p class="muted">{{ colaboradores_panel.heatmap.total_colaboradores }} colaborador(es) no período de {{ colaboradores_panel.heatmap.periodo_inicio|date:"d/m" }} a {{ colaboradores_panel.heatmap.periodo_fim|date:"d/m" }}.</p>
+              <a class="btn secondary" href="{% url 'module_list' 'ferias_colaboradores' %}">Ver mapa completo</a>
+            </article>
+          {% endif %}
+        </div>
+      </section>
+    {% endif %}
+
+    {% if show_closure_panel or central_alertas %}
+      <div class="two-col">
+        {% if show_closure_panel %}
+          <section class="panel">
+            <div class="panel-title">
+              <div>
+                <h2>Checklist de fechamento</h2>
+                <p>Conferência rápida antes de encerrar a rotina do dia.</p>
+              </div>
+              <a class="btn secondary" href="{% url 'relatorios' %}?inicio={{ data }}&fim={{ data }}&tipo=geral">Ver relatório do dia</a>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Status</th><th>Item</th><th>Detalhe</th></tr></thead>
+                <tbody>
+                  {% for item in checklist %}
+                    <tr>
+                      <td>{% if item.ok %}<span class="status-pill ok">OK</span>{% else %}<span class="status-pill paused">Pendente</span>{% endif %}</td>
+                      <td>{{ item.item }}</td>
+                      <td>{{ item.detalhe }}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        {% endif %}
+
+        {% if central_alertas %}
+          <section class="panel">
+            <div class="panel-title">
+              <div>
+                <h2>Central de alertas</h2>
+                <p>Notificações importantes do CD, com atalho para a tela correta.</p>
+              </div>
+            </div>
+            <div class="alert-center-list">
+              {% for alerta in central_alertas %}
+                <article class="alert-center-item {{ alerta.nivel }}">
+                  <div class="alert-center-icon">!</div>
+                  <div>
+                    <strong>{{ alerta.titulo }}</strong>
+                    <p>{{ alerta.texto }}</p>
+                    <small>{{ alerta.data|date:"d/m/Y" }}</small>
+                  </div>
+                  {% if alerta.url %}
+                    <a class="btn secondary small" href="{{ alerta.url }}">Abrir</a>
+                  {% endif %}
+                </article>
+              {% endfor %}
+            </div>
+          </section>
+        {% endif %}
       </div>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Data</th><th>Setor</th><th>Descrição</th><th>Responsável</th><th>Status</th></tr></thead>
-          <tbody>
-            {% for row in pendencias %}
-              <tr><td>{{ row.data|date:"d/m/Y" }}</td><td>{{ row.setor }}</td><td>{{ row.descricao }}</td><td>{{ row.responsavel }}</td><td>{{ row.get_status_display }}</td></tr>
-            {% empty %}
-              <tr><td colspan="5">Nenhuma pendência aberta para este CD.</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </section>
-  {% endif %}
+    {% endif %}
+
+    {% if show_pendencias_panel %}
+      <section class="panel">
+        <div class="panel-title">
+          <div>
+            <h2>Pendências abertas</h2>
+            <p>Itens que ainda precisam de acompanhamento.</p>
+          </div>
+          <a class="btn secondary" href="{% url 'module_list' 'pendencias' %}">Abrir pendências</a>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Data</th><th>Setor</th><th>Descrição</th><th>Responsável</th><th>Status</th></tr></thead>
+            <tbody>
+              {% for row in pendencias %}
+                <tr><td>{{ row.data|date:"d/m/Y" }}</td><td>{{ row.setor }}</td><td>{{ row.descricao }}</td><td>{{ row.responsavel }}</td><td>{{ row.get_status_display }}</td></tr>
+              {% empty %}
+                <tr><td colspan="5">Nenhuma pendência aberta para este CD.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+(function () {
+  var root = document.querySelector(".gc2-home");
+  if (!root) return;
+
+  root.querySelectorAll("[data-home-central-trigger]").forEach(function (trigger) {
+    trigger.addEventListener("click", function (event) {
+      event.preventDefault();
+      var card = trigger.closest("[data-home-central-card]");
+      if (!card) return;
+      var panel = card.querySelector(".home-central-collapse");
+      if (!panel) return;
+      var open = panel.classList.contains("show");
+      root.querySelectorAll("[data-home-central-card]").forEach(function (item) {
+        item.classList.remove("is-open");
+        var collapse = item.querySelector(".home-central-collapse");
+        var btn = item.querySelector("[data-home-central-trigger]");
+        if (collapse) {
+          collapse.classList.remove("show");
+          collapse.setAttribute("aria-hidden", "true");
+        }
+        if (btn) {
+          btn.classList.add("collapsed");
+          btn.setAttribute("aria-expanded", "false");
+        }
+      });
+      if (!open) {
+        panel.classList.add("show");
+        panel.setAttribute("aria-hidden", "false");
+        card.classList.add("is-open");
+        trigger.classList.remove("collapsed");
+        trigger.setAttribute("aria-expanded", "true");
+      }
+    });
+  });
+
+  var metricsModal = root.querySelector("[data-gc2-metrics-modal]");
+  function openMetricsModal() {
+    if (!metricsModal) return;
+    metricsModal.hidden = false;
+    document.body.style.overflow = "hidden";
+  }
+  function closeMetricsModal() {
+    if (!metricsModal) return;
+    metricsModal.hidden = true;
+    document.body.style.overflow = "";
+  }
+  root.querySelectorAll("[data-gc2-open-metrics]").forEach(function (button) {
+    button.addEventListener("click", openMetricsModal);
+  });
+  root.querySelectorAll("[data-gc2-close-metrics]").forEach(function (button) {
+    button.addEventListener("click", closeMetricsModal);
+  });
+  if (metricsModal) {
+    metricsModal.addEventListener("click", function (event) {
+      if (event.target === metricsModal) closeMetricsModal();
+    });
+  }
+  document.addEventListener("keydown", function (event) {
+    if (event.key === "Escape") closeMetricsModal();
+  });
+})();
+</script>
 {% endblock %}

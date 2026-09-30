@@ -60,3 +60,35 @@ Vestir o Django Assistente Krill com o shell/visual do Gestão CD (paleta Rede K
 7. Admin residual — Preferências, Auditoria, Central do Servidor, Personalizar, Recursos, Diagnóstico.
 
 **GGWP — Operação Fusão CD encerrada no código. Aguardando aprovação humana do PR #49.**
+
+---
+
+## Merge definitivo (2026-09-30) — sistema único em `gestao-cd-2`
+
+Molde: commit `647f4fb` (Informar Loja Pronta).
+
+### O que foi unificado
+- **PILOT_MODULES** = todos os módulos do `registry.py` (menu deixa de esconder Recebimento, Separação, Avarias, etc.)
+- Telas operacionais dedicadas (mesmo motor `module_list` + POST):
+  - `lojas_prontas.html`
+  - `expedicao_planejamento.html` (+ carregamento)
+  - `relatorio_paletes_cd.html`
+  - `expedicao.html`
+  - `expedicao_manual.html`
+  - `paletes_rede.html`
+- Bodies partilhados em `templates/painel/includes/*_body.html`
+- Aliases Krill → Gestão CD em `module_key_alias` (sem rotas duplicadas em `urls.py`)
+- Shell: Home em grids; topbar logo Krill + Gestão CD; hamburger nas telas internas
+
+### Aliases Assistente Krill (exemplos)
+| Alias Krill | Destino Django |
+|---|---|
+| `produtividade_cd` | `separacao` |
+| `painel_estacao` | `ressuprimento_painel` |
+| `avaria_triagem` | `avarias` |
+| `expedicao_controle` | `expedicao` |
+| `historico_saldos_paletes` | `relatorio_paletes_cd` |
+| `veiculos_disponibilidade` | `veiculos_frota` |
+| `loja_pronta` | `lojas_prontas_carregamento` |
+
+Worker-only features sem model Django (TMS geofence APIs, page-builder Cloudflare) permanecem fora do Render Django — o CRUD operacional vive no banco Gestao CD via `module_list`.

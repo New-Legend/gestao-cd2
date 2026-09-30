@@ -1,0 +1,377 @@
+  {% if lojas_prontas_carregamento %}
+    {% if not ready_load_queue_mode %}
+    <section class="panel fusao-expedicao-panel" id="lojas-prontas-carregamento">
+      <div class="panel-title">
+        <div>
+          <h2>{% if ready_load_queue_mode %}Fila de carregamento{% else %}Informar loja pronta{% endif %}</h2>
+          <p>{{ lojas_prontas_carregamento.ready_load_profile.subtitle }}</p>
+        </div>
+        <div class="metric-pill bg-[#ffd21f] text-[#061d37]">{{ lojas_prontas_carregamento.pendentes }} pendente(s)</div>
+      </div>
+      <div class="operation-flow-card">
+        {% for step in lojas_prontas_carregamento.ready_load_flow_steps %}
+          <article>
+            <span>{{ forloop.counter }}</span>
+            <strong>{{ step.label }}</strong>
+            <small>{{ step.detail }}</small>
+          </article>
+        {% endfor %}
+      </div>
+      <div class="operation-rule-card">
+        <span>{{ lojas_prontas_carregamento.ready_load_profile.title }}</span>
+        <strong>{{ lojas_prontas_carregamento.ready_load_profile.rule }}</strong>
+      </div>
+      <form class="toolbar js-auto-submit-form" method="get" style="margin-bottom:14px">
+        <label>Data
+          <input class="field js-auto-submit-control" type="date" name="data" value="{{ lojas_prontas_carregamento.data|date:'Y-m-d' }}">
+        </label>
+        <label>Loja
+          <select class="field js-store-switch js-auto-submit-control" name="loja" data-target="#lojas-prontas-carregamento">
+            {% for row in lojas_prontas_carregamento.rows %}
+              <option value="{{ row.loja }}" {% if row.loja == lojas_prontas_carregamento.selected_loja %}selected{% endif %}>{{ row.loja }}</option>
+            {% endfor %}
+          </select>
+        </label>
+      </form>
+      {% if can_notify_ready_loads %}
+        <div class="planning-grid">
+          {% for row in lojas_prontas_carregamento.visible_rows %}
+            <form class="planning-card fusao-planning-card js-store-panel" data-store="{{ row.loja }}" method="post" {% if row.loja != lojas_prontas_carregamento.selected_loja %}hidden{% endif %}>
+              {% csrf_token %}
+              <input type="hidden" name="action" value="registrar_loja_pronta_carregamento">
+              <input type="hidden" name="data" value="{{ lojas_prontas_carregamento.data|date:'Y-m-d' }}">
+              <input type="hidden" name="loja" value="{{ row.loja }}">
+              <div>
+                <span class="muted">Loja selecionada</span>
+                <strong>{{ row.loja }}</strong>
+              </div>
+              {% if lojas_prontas_carregamento.cds|length > 1 %}
+                <label>CD da operação
+                  <select class="field js-ready-load-cd-select" name="cd_destino" required>
+                    <option value="">Escolha antes de avisar</option>
+                    {% for cd_item in lojas_prontas_carregamento.cds %}
+                      <option value="{{ cd_item }}">CD {{ cd_item }}</option>
+                    {% endfor %}
+                  </select>
+                </label>
+              {% endif %}
+              {% if row.ready_load_rules %}
+                <div class="ready-load-rule-grid">
+                  {% for rule in row.ready_load_rules %}
+                    <article class="ready-load-rule" data-ready-load-rule="{{ rule.cd }}">
+                      <span>{{ rule.title }}</span>
+                      <strong>{{ rule.label }}</strong>
+                      <small>Saldo atual: {{ rule.saldo_atual }} pallet(s)</small>
+                      <p>{{ rule.text }}</p>
+                    </article>
+                  {% endfor %}
+                </div>
+              {% endif %}
+              <label><span data-ready-load-qtd-text>{{ lojas_prontas_carregamento.ready_load_profile.field_label }}</span>
+                <input class="field" type="number" min="0" inputmode="numeric" name="qtd_paletes" placeholder="Opcional">
+              </label>
+              <label class="ready-load-801-balance" data-ready-load-801-balance {% if lojas_prontas_carregamento.ready_load_single_cd != "801" %}hidden{% endif %}>Saldo que ficou no box
+                <input class="field" type="number" min="0" inputmode="numeric" name="saldo_restante_801" placeholder="Ex.: 4" {% if lojas_prontas_carregamento.ready_load_single_cd == "801" %}required{% endif %}>
+                <small>Obrigatório no CD 801. Informe quanto sobrou no box depois da conferência/remontagem.</small>
+              </label>
+              <label>Período
+                <select class="field" name="periodo">
+                  <option value="manha">Manhã</option>
+                  <option value="tarde">Tarde</option>
+                </select>
+              </label>
+              <details class="optional-panel wide ready-load-extra">
+                <summary><span data-ready-load-extra-text>{{ lojas_prontas_carregamento.ready_load_profile.extra_label }}</span></summary>
+                <div class="optional-panel-content">
+                  <label class="wide">Detalhe
+                    <textarea class="field auto-grow-textarea" name="observacao" rows="1" placeholder="Ex.: carga conferida, remontagem ou orientação para a Frota"></textarea>
+                  </label>
+                </div>
+              </details>
+              <div>
+                <button class="btn" type="submit" data-ready-load-submit>Enviar para Frota</button>
+              </div>
+            </form>
+          {% empty %}
+            <article class="card"><span>Nenhuma loja</span><strong>Cadastre lojas ativas para usar esta tela.</strong></article>
+          {% endfor %}
+        </div>
+        <div class="operation-insight-grid" style="margin-top:14px">
+          <section class="operation-insight-card">
+            <h3>Alertas da loja</h3>
+            {% for alerta in lojas_prontas_carregamento.alertas_operacionais %}
+              <p>{{ alerta }}</p>
+            {% endfor %}
+          </section>
+          <section class="operation-insight-card">
+            <h3>Linha do tempo</h3>
+            {% for item in lojas_prontas_carregamento.linha_tempo %}
+              <div class="operation-timeline-row">
+                <span>CD {{ item.cd }} - {{ item.title }}</span>
+                <strong>{{ item.detail }}</strong>
+              </div>
+            {% empty %}
+              <p>Nenhum movimento encontrado para esta loja na data selecionada.</p>
+            {% endfor %}
+          </section>
+        </div>
+      {% else %}
+        <p class="message warning">Seu usuário pode abrir esta tela, mas não pode avisar loja pronta.</p>
+      {% endif %}
+    </section>
+    {% endif %}
+    {% if ready_load_queue_mode %}
+    <section class="panel" data-live-region>
+      <details class="optional-panel" open>
+        <summary>
+          <span>Fila de carregamento</span>
+          <span class="metric-pill">{{ lojas_prontas_carregamento.solicitacoes|length }}</span>
+        </summary>
+        {% if lojas_prontas_carregamento.cds|length > 1 %}
+          <div class="ready-load-cd-summary">
+            {% for group in lojas_prontas_carregamento.solicitacoes_por_cd %}
+              <article>
+                <span>CD {{ group.cd }}</span>
+                <strong>{{ group.pendentes }} pendente(s)</strong>
+                <small>{{ group.items|length }} aviso(s) na fila</small>
+              </article>
+            {% endfor %}
+          </div>
+        {% endif %}
+        {% if False and lojas_prontas_carregamento.cargas_designadas %}
+          <div class="ready-load-alert-stack">
+            {% for item in lojas_prontas_carregamento.cargas_designadas %}
+              <article class="ready-load-live-alert" data-dismissible-alert="ready-load-designated-{{ item.pk }}">
+                <div>
+                  <strong>Caminhão designado para {{ item.loja }}</strong>
+                  <span>CD {{ item.cd_unidade }} · {{ item.qtd_paletes }} pallet(s) · {{ item.get_periodo_display }}{% if item.resposta %} · {{ item.resposta }}{% endif %}</span>
+                </div>
+                <button type="button" data-dismiss-alert aria-label="Fechar aviso">×</button>
+              </article>
+            {% endfor %}
+          </div>
+        {% endif %}
+        {% if can_manage_ready_loads and can_link_expedition_loads and lojas_prontas_carregamento.prontas %}
+          <div class="ready-load-picker-bar" data-ready-load-picker-bar>
+            <div>
+              <strong>Montar carga do caminhão</strong>
+              <span data-ready-load-selection-summary>Selecione uma ou mais lojas prontas.</span>
+            </div>
+            <button class="btn small" type="button" data-ready-load-open disabled>Montar carga</button>
+          </div>
+        {% endif %}
+        <div class="optional-panel-content expedition-recent-list">
+          {% for item in lojas_prontas_carregamento.solicitacoes %}
+            <article class="expedition-recent-card">
+              <div class="expedition-recent-head">
+                <div class="ready-load-card-title">
+                  {% if can_manage_ready_loads and can_link_expedition_loads and item.status == "pronta" %}
+                    <label class="ready-load-pick">
+                      <input type="checkbox" name="solicitacao_ids" value="{{ item.pk }}" form="ready-load-bulk-form" data-ready-load-pick data-ready-load-qtd="{{ item.qtd_paletes }}" data-ready-load-label="{{ item.loja }} - CD {{ item.cd_unidade }}">
+                      <span>Selecionar</span>
+                    </label>
+                  {% endif %}
+                  <div>
+                    <strong>{{ item.loja }}</strong>
+                    <span class="ready-load-highlight-line">
+                      <b class="is-origin">Origem: CD {{ item.cd_unidade }}</b>
+                      <b class="is-qty">{{ item.qtd_paletes }} pallet(s)</b>
+                      <b class="is-period">{{ item.get_periodo_display }}</b>
+                    </span>
+                  </div>
+                </div>
+                <span class="status-pill">{{ item.get_status_display }}</span>
+              </div>
+              {% if can_view_billing_values %}
+              <div class="record-detail-grid">
+                  <span><strong>Faturamento BlueSoft:</strong> {{ item.valor_faturado_label|default:"Pendente; Marcela sera avisada quando o valor for informado" }}</span>
+                  {% if item.cargas_bluesoft %}<span><strong>Carga BlueSoft:</strong> {{ item.cargas_bluesoft }}</span>{% endif %}
+                  {% if item.notas_fiscais %}<span><strong>NF:</strong> {{ item.notas_fiscais }}</span>{% endif %}
+                  {% if item.status_faturamento %}<span><strong>Faturamento:</strong> {{ item.status_faturamento }}</span>{% endif %}
+              </div>
+              {% endif %}
+              {% if item.observacao %}
+                <p class="muted">{{ item.observacao }}</p>
+              {% endif %}
+              {% if item.resposta %}
+                <p class="message success">{{ item.resposta }}</p>
+              {% endif %}
+              {% if item.status != "carregada" and item.status != "cancelada" %}
+                <form class="inline-form" method="post" onsubmit="return confirm('Cancelar este aviso de loja pronta?')">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="atualizar_loja_pronta_carregamento">
+                  <input type="hidden" name="solicitacao_id" value="{{ item.pk }}">
+                  <input type="hidden" name="data" value="{{ lojas_prontas_carregamento.data|date:'Y-m-d' }}">
+                  <input type="hidden" name="loja" value="{{ item.loja }}">
+                  <input type="hidden" name="status" value="cancelada">
+                  <input type="hidden" name="resposta" value="Aviso cancelado.">
+                  <button class="btn small danger" type="submit">Cancelar aviso</button>
+                </form>
+                {% if can_manage_ready_loads %}
+                  <details class="inline-details">
+                    <summary>Corrigir quantidade</summary>
+                    <form class="approval-actions" method="post">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="corrigir_loja_pronta_carregamento">
+                      <input type="hidden" name="solicitacao_id" value="{{ item.pk }}">
+                      <input type="hidden" name="data" value="{{ lojas_prontas_carregamento.data|date:'Y-m-d' }}">
+                      <input type="hidden" name="loja" value="{{ item.loja }}">
+                      <input class="field" type="number" min="1" inputmode="numeric" name="qtd_paletes" value="{{ item.qtd_paletes }}" placeholder="Nova quantidade">
+                      {% if item.cd_unidade == "801" %}
+                        <input class="field" type="number" min="0" inputmode="numeric" name="saldo_restante_801" placeholder="Saldo que ficou no box, se quiser corrigir também">
+                      {% endif %}
+                      <button class="btn small secondary" type="submit">Salvar correção</button>
+                    </form>
+                  </details>
+                {% endif %}
+              {% endif %}
+              {% if can_manage_ready_loads and can_link_expedition_loads and item.status == "pronta" %}
+                <button class="btn small secondary" type="button" data-ready-load-open-one="{{ item.pk }}">Montar só esta loja</button>
+              {% endif %}
+              {% if can_manage_ready_loads and item.status == "em_carregamento" %}
+                {% if can_link_expedition_loads %}
+                  <details class="inline-details">
+                    <summary>Trocar caminhão</summary>
+                    <form class="approval-actions" method="post" onsubmit="return confirm('Liberar esta carga para escolher outro caminhão?')">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="liberar_troca_caminhao_loja_pronta">
+                      <input type="hidden" name="solicitacao_id" value="{{ item.pk }}">
+                      <input type="hidden" name="data" value="{{ lojas_prontas_carregamento.data|date:'Y-m-d' }}">
+                      <input type="hidden" name="loja" value="{{ item.loja }}">
+                      <input class="field" name="motivo" placeholder="Motivo opcional">
+                      <button class="btn small secondary" type="submit">Liberar para trocar</button>
+                    </form>
+                  </details>
+                {% endif %}
+                <form class="inline-form" method="post" onsubmit="return confirm('Concluir este carregamento?')">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="atualizar_loja_pronta_carregamento">
+                  <input type="hidden" name="solicitacao_id" value="{{ item.pk }}">
+                  <input type="hidden" name="data" value="{{ lojas_prontas_carregamento.data|date:'Y-m-d' }}">
+                  <input type="hidden" name="loja" value="{{ item.loja }}">
+                  <input type="hidden" name="status" value="carregada">
+                  <input type="hidden" name="resposta" value="Carregamento concluido.">
+                  <button class="btn small success" type="submit">Concluir carregamento</button>
+                </form>
+              {% endif %}
+            </article>
+          {% empty %}
+            <article class="card"><span>Sem avisos</span><strong>Nenhuma carga na fila nesta data.</strong></article>
+          {% endfor %}
+        </div>
+        {% if can_manage_ready_loads and can_link_expedition_loads and lojas_prontas_carregamento.prontas %}
+          <section class="network-pallet-modal-layer ready-load-modal-layer fusao-ready-load-modal" id="ready-load-bulk-modal" aria-label="Montar carga do caminhão" hidden>
+            <form class="network-pallet-modal ready-load-modal" id="ready-load-bulk-form" method="post">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="vincular_loja_pronta_multi_cd">
+              <input type="hidden" name="data" value="{{ lojas_prontas_carregamento.data|date:'Y-m-d' }}">
+              <button class="network-pallet-close-x" type="button" data-ready-load-close aria-label="Fechar">×</button>
+              <div class="network-pallet-modal-head">
+                <div>
+                  <span>Frota</span>
+                  <h3>Montar carga do caminhão</h3>
+                  <p data-ready-load-modal-summary>Escolha o caminhão e confirme as lojas selecionadas.</p>
+                </div>
+              </div>
+              <div class="ready-load-modal-grid">
+                <label>Caminhão
+                  <select class="field" name="veiculo_frota" required>
+                    <option value="">Selecione motorista e placa</option>
+                    {% for veiculo in veiculos_frota %}
+                      <option value="{{ veiculo.id }}" data-ready-vehicle-available="{{ veiculo.availability_available|yesno:'1,0' }}" data-ready-vehicle-status="{{ veiculo.availability_status }}" data-ready-vehicle-detail="{{ veiculo.availability_detail }}">CD {{ veiculo.cd_unidade }} - {{ veiculo.motorista }} - {{ veiculo.placa }}{% if veiculo.tipo_caminhao %} - {{ veiculo.tipo_caminhao }}{% endif %}{% if veiculo.eh_plataforma and not veiculo.plataforma_operacional %} - Plataforma quebrada{% endif %}</option>
+                    {% endfor %}
+                  </select>
+                </label>
+                <label>Orientação da Frota
+                  <input class="field" name="orientacao_frota" placeholder="Ex.: descarregar primeiro a loja com mais pallets">
+                </label>
+              </div>
+              <div class="ready-load-modal-alert" data-ready-load-vehicle-alert hidden></div>
+              <div class="ready-load-selected-list">
+                {% for ready in lojas_prontas_carregamento.prontas %}
+                  <label class="ready-load-selected-row" data-ready-load-selected-row="{{ ready.pk }}" hidden>
+                    <span>
+                      <strong>{{ ready.loja }}</strong>
+                      <small>CD {{ ready.cd_unidade }} · {{ ready.get_periodo_display }}</small>
+                    </span>
+                    <input class="field" type="number" min="1" inputmode="numeric" name="qtd_paletes_{{ ready.pk }}" value="{{ ready.qtd_paletes }}" aria-label="Qtd. {{ ready.loja }}">
+                    <input type="hidden" name="ordem_entrega_{{ ready.pk }}" value="{{ forloop.counter }}">
+                  </label>
+                {% endfor %}
+              </div>
+              <button class="btn" type="submit" data-ready-load-submit-bulk disabled>Enviar para caminhão</button>
+            </form>
+          </section>
+        {% endif %}
+      </details>
+      <details class="optional-panel" open>
+        <summary>
+          <span>Lojas em andamento</span>
+          <span class="metric-pill">{{ lojas_prontas_carregamento.em_andamento_total }}</span>
+        </summary>
+        <div class="optional-panel-content expedition-recent-list">
+          {% for item in lojas_prontas_carregamento.em_andamento %}
+            <article class="expedition-recent-card">
+              <div class="expedition-recent-head">
+                <div class="ready-load-card-title">
+                  <div>
+                    <strong>{{ item.loja }}</strong>
+                    <span class="ready-load-highlight-line">
+                      <b class="is-origin">Origem: CD {{ item.cd_unidade }}</b>
+                      <b class="is-qty">{{ item.qtd_paletes }} pallet(s)</b>
+                      <b class="is-period">{{ item.get_periodo_display }}</b>
+                    </span>
+                  </div>
+                </div>
+                <span class="status-pill">Em andamento</span>
+              </div>
+              {% if item.resposta %}<p class="message success">{{ item.resposta }}</p>{% endif %}
+              {% if can_manage_ready_loads and can_link_expedition_loads %}
+                <details class="inline-details">
+                  <summary>Trocar caminhão</summary>
+                  <form class="approval-actions" method="post" onsubmit="return confirm('Liberar esta carga para escolher outro caminhão?')">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="liberar_troca_caminhao_loja_pronta">
+                    <input type="hidden" name="solicitacao_id" value="{{ item.pk }}">
+                    <input type="hidden" name="data" value="{{ lojas_prontas_carregamento.data|date:'Y-m-d' }}">
+                    <input type="hidden" name="loja" value="{{ item.loja }}">
+                    <input class="field" name="motivo" placeholder="Motivo opcional">
+                    <button class="btn small secondary" type="submit">Liberar para trocar</button>
+                  </form>
+                </details>
+              {% endif %}
+            </article>
+          {% empty %}
+            <article class="card"><span>Nada em andamento</span><strong>Nenhuma loja vinculada a caminhão nesta data.</strong></article>
+          {% endfor %}
+        </div>
+      </details>
+      <details class="optional-panel">
+        <summary>
+          <span>Histórico/registro</span>
+          <span class="metric-pill">{{ lojas_prontas_carregamento.historico_total }}</span>
+        </summary>
+        <div class="optional-panel-content expedition-recent-list">
+          {% for item in lojas_prontas_carregamento.historico %}
+            <article class="expedition-recent-card">
+              <div class="expedition-recent-head">
+                <div>
+                  <strong>{{ item.loja }}</strong>
+                  <span class="ready-load-highlight-line">
+                    <b class="is-origin">Origem: CD {{ item.cd_unidade }}</b>
+                    <b class="is-qty">{{ item.qtd_paletes }} pallet(s)</b>
+                    <b class="is-period">{{ item.get_status_display }}</b>
+                  </span>
+                </div>
+                <span class="status-pill">{{ item.get_status_display }}</span>
+              </div>
+              {% if item.resposta %}<p class="muted">{{ item.resposta }}</p>{% endif %}
+            </article>
+          {% empty %}
+            <article class="card"><span>Sem histórico</span><strong>Nenhum registro finalizado nesta data.</strong></article>
+          {% endfor %}
+        </div>
+      </details>
+    </section>
+    {% endif %}
+  {% endif %}

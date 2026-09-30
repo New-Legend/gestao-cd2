@@ -44,13 +44,21 @@
       border-radius: 16px;
       display: grid;
       place-items: center;
-      background: var(--blue2);
+      background: #fff;
       color: var(--yellow);
       border: 2px solid var(--yellow);
       font-weight: 900;
       font-size: 22px;
       letter-spacing: .02em;
       margin: 0 0 18px;
+      overflow: hidden;
+      padding: 6px;
+    }
+    .mark img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
     }
     h1 { margin: 0 0 6px; color: var(--blue2); font-size: 30px; line-height: 1.15; }
     .brand-sub { margin: 0 0 8px; color: var(--blue); font-weight: 800; font-size: 13px; text-transform: uppercase; letter-spacing: .04em; }
@@ -126,8 +134,10 @@
 </head>
 <body>
   <main class="card">
-    <div class="mark" aria-hidden="true">CD</div>
-    <p class="brand-sub">Operação logística</p>
+    <div class="mark">
+      <img src="{% static 'painel/img/rede-krill-logo-clean.png' %}" alt="Rede Krill Supermercados" width="60" height="60">
+    </div>
+    <p class="brand-sub">Rede Krill · Operação logística</p>
     <h1>Gestão CD</h1>
     <p>Entre com seu usuário e senha para acessar a operação.</p>
     {% if messages %}

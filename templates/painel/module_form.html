@@ -2,14 +2,18 @@
 {% block title %}Editar {{ module.title }} - Gestão CD{% endblock %}
 {% block page_title %}Editar {{ module.title }}{% endblock %}
 {% block content %}
-  <section class="panel fusao-module-form-panel">
-    <div class="panel-title">
-      <div>
-        <h2>Alterar registro</h2>
-        <p>{{ obj }}</p>
-        <p class="muted">Este registro fica reservado para você por alguns minutos enquanto estiver editando.</p>
+<div class="gc2-page gc2-module">
+  <section class="gc2-canvas fusao-module-form-panel">
+    <div class="gc2-heading">
+      <div class="gc2-heading-inner">
+        <div>
+          <span class="erp-eyebrow">Edição · {{ module.title }}</span>
+          <h1>Alterar registro</h1>
+          <p>{{ obj }}</p>
+          <p class="muted" style="margin:6px 0 0">Este registro fica reservado para você por alguns minutos enquanto estiver editando.</p>
+        </div>
+        <a class="btn secondary" href="{% url 'module_list' module.key %}">Voltar</a>
       </div>
-      <a class="btn secondary" href="{% url 'module_list' module.key %}">Voltar</a>
     </div>
     <form method="post">
       {% csrf_token %}
@@ -23,10 +27,11 @@
           </div>
         {% endfor %}
       </div>
-      <div class="fusao-module-form-actions">
+      <div class="fusao-module-form-actions form-actions">
         <button class="btn" type="submit">Salvar alteração</button>
         <a class="btn secondary" href="{% url 'module_list' module.key %}">Cancelar</a>
       </div>
     </form>
   </section>
+</div>
 {% endblock %}

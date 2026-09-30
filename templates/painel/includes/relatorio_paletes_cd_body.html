@@ -1,0 +1,111 @@
+{% load painel_extras %}
+  {% if relatorio_paletes_cd %}
+    <section class="panel fusao-expedicao-panel" id="relatorio-paletes-cd">
+      <div class="panel-title">
+        <div>
+          <h2>Saldo atual de pallets</h2>
+          <p>Confira o que ainda consta no sistema por loja e CD. Se a carga já saiu fisicamente sem baixa no sistema, use a correção rápida para zerar o saldo.</p>
+        </div>
+        <div class="metric-pill">Livre agora {{ relatorio_paletes_cd.grand_livre }} pallet(s)</div>
+      </div>
+      <form class="toolbar js-auto-submit-form" method="get" style="margin-bottom:14px">
+        <label>Data
+          <input class="field js-auto-submit-control" type="date" name="data" value="{{ relatorio_paletes_cd.data|date:'Y-m-d' }}">
+        </label>
+      </form>
+      <div class="cd-summary-grid fusao-card-grid">
+        {% for cd_item,total in relatorio_paletes_cd.totals.items %}
+          <article class="cd-summary-card cd-summary-{{ cd_item }} fusao-metric-card">
+            <span>CD {{ cd_item }}</span>
+            <strong>{{ relatorio_paletes_cd.totals_livres|get_item:cd_item }}</strong>
+            <small>livre agora</small>
+            <div class="cd-summary-metrics">
+              <span>Saldo atual <strong>{{ total }}</strong></span>
+              <span>Reservado <strong>{{ relatorio_paletes_cd.totals_vinculados|get_item:cd_item }}</strong></span>
+              <span>Expedido <strong>{{ relatorio_paletes_cd.totals_expedidos|get_item:cd_item }}</strong></span>
+            </div>
+          </article>
+        {% endfor %}
+        <article class="cd-summary-card fusao-metric-card">
+          <span>Expedido</span>
+          <strong>{{ relatorio_paletes_cd.grand_expedido }}</strong>
+          <small>pallets lançados em caminhões</small>
+        </article>
+        <article class="cd-summary-card fusao-metric-card">
+          <span>Lojas com saldo</span>
+          <strong>{{ relatorio_paletes_cd.lojas_com_saldo }}</strong>
+          <small>lojas com pallets disponíveis</small>
+        </article>
+      </div>
+      <details class="optional-panel fusao-expedicao-panel" id="lojas-com-saldo" style="margin-top:14px" open>
+        <summary>
+          <span>Ver lojas com saldo</span>
+          <span class="metric-pill">{{ relatorio_paletes_cd.rows|length }}</span>
+        </summary>
+        <div class="optional-panel-content pallet-report-grid">
+          {% for row in relatorio_paletes_cd.rows %}
+            <article class="pallet-report-card {% if row.total %}has-volume{% endif %}">
+              <div class="pallet-report-store">
+                <span>Loja</span>
+                <strong>{{ row.loja }}</strong>
+              </div>
+              <div>
+                {% include "painel/includes/pallet_balance_blocks.html" with cds=relatorio_paletes_cd.cds row=row show_expedido=1 show_zero_action=1 %}
+              </div>
+              <div class="pallet-report-details">
+                <small><strong>Total da loja:</strong> {{ row.total_livre }} livre(s), {{ row.total_vinculado }} reservado(s), {{ row.total }} informado(s).</small>
+                {% for cd_item in relatorio_paletes_cd.cds %}
+                  {% with value=row.cds|get_item:cd_item %}
+                    {% if value.observacao %}
+                      <small><strong>Obs. CD {{ cd_item }}:</strong> {{ value.observacao }}</small>
+                    {% endif %}
+                  {% endwith %}
+                {% endfor %}
+              </div>
+            </article>
+          {% empty %}
+            <article class="card"><span>Nenhuma loja</span><strong>Cadastre lojas ativas para montar o relatorio.</strong></article>
+          {% endfor %}
+        </div>
+      </details>
+      {% if relatorio_paletes_cd.reservas_abertas %}
+        <details class="optional-panel" id="reservas-abertas" style="margin-top:14px" open>
+          <summary>
+            <span>Reservas abertas</span>
+            <span class="metric-pill">{{ relatorio_paletes_cd.reservas_abertas_total }} pallet(s)</span>
+          </summary>
+          <div class="optional-panel-content expedition-recent-list">
+            {% for item in relatorio_paletes_cd.reservas_abertas %}
+              <article class="expedition-recent-card linked-load-card">
+                <div class="expedition-recent-head">
+                  <div>
+                    <strong>{{ item.loja }}</strong>
+                    <span>CD {{ item.cd_unidade }} - {{ item.qtd_paletes }} pallet(s) - reservado em {{ item.data|date:"d/m/Y" }} - {{ item.motorista|default:"Sem motorista" }}{% if item.placa %} - {{ item.placa }}{% endif %}</span>
+                  </div>
+                  <span class="status-pill">Reservada</span>
+                </div>
+                {% if item.observacao %}<p class="muted">{{ item.observacao }}</p>{% endif %}
+                {% if can_link_expedition_loads or can_manage_pallet_balance or can_edit_module %}
+                  <form class="inline-form" method="post" onsubmit="return confirm('Cancelar esta reserva?O saldo ficara livre para outro caminhão.')">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="cancelar_vinculo_expedicao">
+                    <input type="hidden" name="vinculo_id" value="{{ item.pk }}">
+                    <input type="hidden" name="data" value="{{ relatorio_paletes_cd.data|date:'Y-m-d' }}">
+                    <input type="hidden" name="loja" value="{{ item.loja }}">
+                    <input class="field" name="motivo_cancelamento" placeholder="Motivo opcional">
+                    <button class="btn small secondary" type="submit">Cancelar reserva</button>
+                  </form>
+                {% endif %}
+              </article>
+            {% endfor %}
+          </div>
+        </details>
+      {% else %}
+        <article class="card" style="margin-top:14px">
+          <span>Reservas abertas</span>
+          <strong>Nenhuma reserva aberta para o CD selecionado.</strong>
+          <small>Quando a Frota reservar caminhão e a Expedição ainda não confirmar a carga, ela aparece aqui sem depender da data filtrada.</small>
+        </article>
+      {% endif %}
+    </section>
+  {% endif %}

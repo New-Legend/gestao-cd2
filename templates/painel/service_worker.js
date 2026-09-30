@@ -1,11 +1,11 @@
 {% load static %}
-const CACHE_NAME = "modelo-teste-pwa-{{ app_version|escapejs }}";
+const CACHE_NAME = "gestao-cd-pwa-{{ app_version|escapejs }}";
 const OFFLINE_URL = "/offline/";
 const CORE_ASSETS = [
   OFFLINE_URL,
-  "{% static 'painel/img/modelo-teste-192.png' %}",
-  "{% static 'painel/img/modelo-teste-512.png' %}",
-  "{% static 'painel/img/modelo-teste-apple.png' %}"
+  "{% static 'painel/img/gestao-cd-192.png' %}",
+  "{% static 'painel/img/gestao-cd-512.png' %}",
+  "{% static 'painel/img/rede-krill-logo-clean.png' %}"
 ];
 
 self.addEventListener("install", function (event) {
@@ -19,7 +19,7 @@ self.addEventListener("install", function (event) {
 self.addEventListener("activate", function (event) {
   event.waitUntil(caches.keys().then(function (keys) {
     return Promise.all(keys.filter(function (key) {
-      return (key.startsWith("krill-pwa-") || key.startsWith("modelo-teste-pwa-")) && key !== CACHE_NAME;
+      return (key.startsWith("krill-pwa-") || key.startsWith("modelo-teste-pwa-") || key.startsWith("gestao-cd-pwa-")) && key !== CACHE_NAME;
     }).map(function (key) {
       return caches.delete(key);
     }));
@@ -66,8 +66,8 @@ self.addEventListener("push", function (event) {
   const title = payload.title || "Gestão CD";
   const options = {
     body: payload.body || "Existe uma atualização no sistema.",
-    icon: "{% static 'painel/img/modelo-teste-192.png' %}",
-    badge: "{% static 'painel/img/modelo-teste-192.png' %}",
+    icon: "{% static 'painel/img/gestao-cd-192.png' %}",
+    badge: "{% static 'painel/img/gestao-cd-192.png' %}",
     tag: payload.tag || "gestao-cd",
     data: {
       url: payload.url || "/",

@@ -1,0 +1,236 @@
+{% extends "painel/base.html" %}
+{% block title %}{{ screen.title }} - Gestão CD{% endblock %}
+{% block page_title %}{{ screen.title }}{% endblock %}
+{% block content %}
+<style>
+  .krill-hero, .krill-card, .krill-panel, .krill-dock, .krill-slot {
+    background:#fff; border:1px solid #e2e8f0; border-radius:12px; box-shadow:0 8px 22px rgba(6,29,55,.06);
+  }
+  .krill-hero { padding:16px 18px; margin-bottom:14px; }
+  .krill-kicker { color:#073b73; font-size:12px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
+  .krill-hero h2 { margin:4px 0; color:#061d37; font-size:1.6rem; }
+  .krill-hero p, .krill-panel p { color:#627084; }
+  .krill-actions, .krill-filters, .krill-form { display:flex; flex-wrap:wrap; gap:10px; align-items:end; }
+  .krill-actions a, .krill-filters button, .krill-form button, .krill-inline button {
+    display:inline-flex; align-items:center; min-height:36px; padding:0 12px; border-radius:10px;
+    background:#061d37; color:#fff; font-weight:700; text-decoration:none; border:0;
+  }
+  .krill-actions a { background:#fff; color:#061d37; border:1px solid #d5deea; }
+  .krill-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-bottom:14px; }
+  .krill-card { padding:14px; border-top:4px solid #061d37; }
+  .krill-card span, .krill-card small { color:#627084; font-size:12px; font-weight:700; }
+  .krill-card strong { display:block; color:#061d37; font-size:1.6rem; }
+  .krill-panel { padding:14px; margin-bottom:14px; overflow:auto; }
+  .krill-panel h3 { margin:0 0 8px; color:#061d37; }
+  .krill-panel table { width:100%; border-collapse:collapse; }
+  .krill-panel th, .krill-panel td { text-align:left; padding:8px 6px; border-bottom:1px solid #e8eef5; vertical-align:top; }
+  .krill-panel th { font-size:12px; color:#627084; }
+  .krill-pill { border-radius:999px; padding:4px 8px; font-weight:800; font-size:12px; }
+  .krill-pill.ok { background:#ecfdf3; color:#148a42; }
+  .krill-pill.warning { background:#fff7d6; color:#755100; }
+  .krill-pill.danger { background:#fee2e2; color:#d71920; }
+  .krill-note { padding:12px 14px; border-radius:10px; margin-bottom:12px; }
+  .krill-note.ok { background:#ecfdf3; color:#148a42; }
+  .krill-note.danger { background:#fee2e2; color:#d71920; }
+  .krill-field { display:grid; gap:4px; min-width:160px; }
+  .krill-field.wide { flex:1 1 100%; }
+  .krill-field input, .krill-field select, .krill-field textarea {
+    border:1px solid #cbd5e1; border-radius:8px; padding:8px 10px; min-height:38px;
+  }
+  .krill-docks, .krill-streets { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:10px; margin-bottom:14px; }
+  .krill-dock, .krill-slot { padding:12px; }
+  .krill-slot form, .krill-inline form { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+  .krill-map { height:420px; border-radius:12px; margin-bottom:14px; background:#e2e8f0; }
+  .krill-empty { padding:18px; color:#627084; }
+</style>
+
+<section class="krill-hero">
+  <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:end">
+    <div>
+      <span class="krill-kicker">{{ screen.eyebrow }}</span>
+      <h2>{{ screen.title }}</h2>
+      {% if screen.lead %}<p>{{ screen.lead }}</p>{% endif %}
+    </div>
+    {% if screen.actions %}
+    <div class="krill-actions">
+      {% for action in screen.actions %}
+      <a href="{{ action.href }}">{{ action.label }}</a>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+</section>
+
+{% if screen.notice %}<div class="krill-note ok">{{ screen.notice }}</div>{% endif %}
+{% if screen.error %}<div class="krill-note danger">{{ screen.error }}</div>{% endif %}
+
+{% if screen.denied %}
+<section class="krill-panel"><p>Esta tela existe no Gestão CD 2, mas o seu usuário não tem permissão para operá-la.</p></section>
+{% else %}
+
+{% if screen.filters %}
+<form class="krill-panel krill-filters" method="get">
+  {% for field in screen.filters %}
+  <label class="krill-field">{{ field.label }}
+    {% if field.type == "select" %}
+    <select name="{{ field.name }}">
+      {% for value, label in field.options %}
+      <option value="{{ value }}" {% if field.value == value %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    {% else %}
+    <input name="{{ field.name }}" type="{{ field.type }}" value="{{ field.value }}">
+    {% endif %}
+  </label>
+  {% endfor %}
+  <button type="submit">Buscar</button>
+</form>
+{% endif %}
+
+{% if screen.cards %}
+<section class="krill-grid" aria-label="Resumo">
+  {% for card in screen.cards %}
+  <article class="krill-card"><span>{{ card.label }}</span><strong>{{ card.value }}</strong><small>{{ card.hint }}</small></article>
+  {% endfor %}
+</section>
+{% endif %}
+
+{% if screen.form %}
+<form class="krill-panel krill-form" method="post" action="{{ screen.form.action }}">
+  {% csrf_token %}
+  <div style="flex:1 1 100%"><h3>{{ screen.form.title }}</h3></div>
+  {% if screen.form.hidden %}
+  {% for key, value in screen.form.hidden.items %}
+  <input type="hidden" name="{{ key }}" value="{{ value }}">
+  {% endfor %}
+  {% endif %}
+  {% for field in screen.form.fields %}
+  <label class="krill-field {% if field.wide %}wide{% endif %}">{{ field.label }}
+    {% if field.type == "select" %}
+    <select name="{{ field.name }}">
+      {% for value, label in field.options %}
+      <option value="{{ value }}" {% if field.value == value %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    {% elif field.type == "textarea" %}
+    <textarea name="{{ field.name }}" {% if field.required %}required{% endif %}>{{ field.value }}</textarea>
+    {% else %}
+    <input name="{{ field.name }}" type="{{ field.type }}" value="{{ field.value }}" {% if field.required %}required{% endif %}>
+    {% endif %}
+  </label>
+  {% endfor %}
+  <button type="submit">{{ screen.form.submit }}</button>
+</form>
+{% endif %}
+
+{% if screen.docks %}
+<section class="krill-docks" aria-label="Docas">
+  {% for dock in screen.docks %}
+  <article class="krill-dock"><span class="krill-kicker">{{ dock.codigo }}</span><strong>{{ dock.nome }}</strong><p>{{ dock.status }}</p></article>
+  {% endfor %}
+</section>
+{% endif %}
+
+{% if screen.streets %}
+<section class="krill-streets" aria-label="Planta do armazém">
+  {% for street in screen.streets %}
+  <article class="krill-panel">
+    <h3>Rua {{ street.rua }}</h3>
+    {% for slot in street.slots %}
+    <form method="post" action="/wms/mapa/" class="krill-slot" style="margin-bottom:8px">
+      {% csrf_token %}
+      <input type="hidden" name="position_id" value="{{ slot.id }}">
+      <strong>{{ slot.codigo }}</strong>
+      <small>nível {{ slot.nivel }} · {{ slot.produto|default:"livre" }} · {{ slot.paletes }} pal</small>
+      <select name="status">
+        <option value="LIVRE" {% if slot.status == "LIVRE" %}selected{% endif %}>Livre</option>
+        <option value="OCUPADO" {% if slot.status == "OCUPADO" %}selected{% endif %}>Ocupado</option>
+        <option value="BLOQUEADO" {% if slot.status == "BLOQUEADO" %}selected{% endif %}>Bloqueado</option>
+      </select>
+      <input name="produto_ean" placeholder="EAN" value="">
+      <input name="produto_nome" placeholder="Produto" value="{{ slot.produto }}">
+      <input name="quantidade_paletes" type="number" step="0.001" value="{{ slot.paletes }}">
+      <button type="submit">Salvar</button>
+    </form>
+    {% endfor %}
+  </article>
+  {% endfor %}
+</section>
+{% endif %}
+
+{% if screen.show_map %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<div id="krill-live-map" class="krill-map" aria-label="Mapa da torre"></div>
+{{ screen.map_trips|json_script:"krill-map-trips" }}
+{{ screen.map_zones|json_script:"krill-map-zones" }}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+(function () {
+  var node = document.getElementById("krill-live-map");
+  if (!node || !window.L) return;
+  var trips = JSON.parse(document.getElementById("krill-map-trips").textContent || "[]");
+  var zones = JSON.parse(document.getElementById("krill-map-zones").textContent || "[]");
+  var map = L.map(node).setView([-23.99, -46.4], 11);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "&copy; OpenStreetMap" }).addTo(map);
+  var points = [];
+  zones.forEach(function (zone) {
+    var lat = Number(zone.latitude), lng = Number(zone.longitude);
+    if (!isFinite(lat) || !isFinite(lng)) return;
+    var color = zone.type === "LOJA" ? "#2563eb" : zone.type === "CD" ? "#16a34a" : "#f59e0b";
+    L.circle([lat, lng], { radius: Math.max(50, Number(zone.radiusMeters) || 300), color: color, weight: 1, fillColor: color, fillOpacity: 0.08 }).bindTooltip(zone.name + " · " + zone.type).addTo(map);
+    points.push([lat, lng]);
+  });
+  trips.forEach(function (trip) {
+    var position = trip.lastPosition;
+    if (!position) return;
+    var lat = Number(position.lat), lng = Number(position.lng);
+    if (!isFinite(lat) || !isFinite(lng)) return;
+    L.marker([lat, lng]).bindPopup("<strong>" + (trip.vehicle.plate || "Veículo") + "</strong><br>" + (trip.driver.name || "")).addTo(map);
+    points.push([lat, lng]);
+  });
+  if (points.length) map.fitBounds(points, { padding: [24, 24], maxZoom: 13 });
+})();
+</script>
+{% endif %}
+
+{% for table in screen.tables %}
+<section class="krill-panel">
+  {% if table.title %}<h3>{{ table.title }}</h3>{% endif %}
+  {% if table.lead %}<p>{{ table.lead }}</p>{% endif %}
+  {% if table.rows %}
+  <table>
+    <thead><tr>{% for header in table.headers %}<th>{{ header }}</th>{% endfor %}</tr></thead>
+    <tbody>
+      {% for row in table.rows %}
+      <tr>
+        {% for item in row %}
+        <td>
+          {% if item.href %}<a href="{{ item.href }}">{{ item.text }}</a>
+          {% elif item.tone %}<span class="krill-pill {{ item.tone }}">{{ item.text }}</span>
+          {% else %}{{ item.text }}{% endif %}
+          {% if item.forms %}
+          <span class="krill-inline">
+            {% for form in item.forms %}
+            <form method="post" action="{{ form.action }}">
+              {% csrf_token %}
+              {% for key, value in form.fields.items %}
+              <input type="hidden" name="{{ key }}" value="{{ value }}">
+              {% endfor %}
+              <button type="submit">{{ form.label }}</button>
+            </form>
+            {% endfor %}
+          </span>
+          {% endif %}
+        </td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="krill-empty">Nenhum registro neste recorte.</p>
+  {% endif %}
+</section>
+{% endfor %}
+{% endif %}
+{% endblock %}

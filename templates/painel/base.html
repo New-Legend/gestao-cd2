@@ -84,6 +84,11 @@
       border-bottom: 1px solid rgba(255,255,255,.14);
       margin-bottom: 16px;
     }
+    .erp-sidebar-brand-row .brand {
+      padding: 0;
+      border-bottom: 0;
+      margin-bottom: 0;
+    }
     .sidebar-close {
       border: 1px solid rgba(255,255,255,.22);
       background: rgba(255,255,255,.12);
@@ -3838,9 +3843,10 @@
       .sidebar-close { display: none !important; }
       .main { padding-top: 0; }
       .topbar { position: relative; top: auto; align-items: stretch; flex-direction: column; padding: 12px; z-index: 50; box-shadow: 0 8px 24px rgba(6, 29, 55, .12); }
-      .page-title-row { padding-left: 64px; }
-      .topbar-back { width: 40px; height: 40px; font-size: 24px; }
-      .topbar h1 { font-size: 22px; padding-left: 0; }
+      .page-title-row { padding-left: 58px; }
+      .topbar-back { display: none !important; }
+      .topbar h1 { font-size: 18px; padding-left: 0; }
+      .topbar-brand-name { font-size: 14px; }
       .top-actions {
         width: 100%;
         display: grid;
@@ -5431,17 +5437,24 @@
     }
 
   </style>
+  <link rel="stylesheet" href="{% static 'painel/css/gestao-cd-modern.css' %}">
+  <link rel="icon" type="image/png" href="{% static 'painel/img/rede-krill-logo-clean.png' %}">
+  <link rel="shortcut icon" href="{% static 'painel/img/rede-krill-logo-clean.png' %}">
+  <link rel="apple-touch-icon" href="{% static 'painel/img/rede-krill-logo-clean.png' %}">
 </head>
-<body class="fusao-cd" id="atlas-ui">
+<body class="fusao-cd atlas-theme {% block body_class %}{% endblock %}" id="atlas-ui">
   <input class="mobile-menu-toggle" id="mobileMenuToggle" type="checkbox">
   <label class="mobile-menu-btn" for="mobileMenuToggle" aria-label="Abrir menu">☰</label>
   <label class="mobile-menu-overlay" for="mobileMenuToggle" aria-label="Fechar menu"></label>
   <div class="app-shell min-h-screen">
     <aside id="erp-sidebar" class="sidebar erp-sidebar theme-primary-surface" aria-label="Menu principal">
-      <a class="brand erp-sidebar-brand" href="{% url 'dashboard' %}" title="Gestão CD">
-        <span class="brand-mark" aria-hidden="true">CD</span>
-        <span class="brand-title">Gestão CD<span>Operação logística</span></span>
-      </a>
+      <div class="erp-sidebar-brand-row">
+        <a class="brand erp-sidebar-brand" href="{% url 'dashboard' %}" title="Gestão CD" aria-label="Gestão CD">
+          <img class="erp-sidebar-brand-logo" src="{% static 'painel/img/rede-krill-logo-clean.png' %}" alt="Rede Krill Supermercados" width="40" height="40">
+          <span class="brand-title">Gestão CD<small>Operação logística</small></span>
+        </a>
+        <button class="erp-sidebar-close" type="button" data-erp-sidebar-close aria-label="Fechar menu"><span aria-hidden="true">&times;</span></button>
+      </div>
       <nav class="erp-sidebar-tree" aria-label="Navegação">
         {% if not is_motorista %}
           <details class="nav-group" data-nav-group="Principal">
@@ -5479,6 +5492,25 @@
             </div>
           </details>
         {% endfor %}
+        {% if can_tms_krill and not is_motorista %}
+          <details class="nav-group" data-nav-group="TMS" {% if krill_nav_open %}open{% endif %}>
+            <summary class="nav-heading">TMS</summary>
+            <div class="nav-items">
+              <a class="nav-link" href="{% url 'tms_expedicao' %}"><span class="nav-icon">EX</span>Central de Expedição</a>
+              <a class="nav-link" href="{% url 'tms_dashboard' %}"><span class="nav-icon">DB</span>Dashboard TMS</a>
+              <a class="nav-link" href="{% url 'tms_romaneios' %}"><span class="nav-icon">RO</span>Romaneios</a>
+              <a class="nav-link" href="{% url 'tms_acompanhamento' %}"><span class="nav-icon">AC</span>Acompanhamento</a>
+              <a class="nav-link" href="{% url 'tms_executar' %}"><span class="nav-icon">OT</span>Executar OT</a>
+              <a class="nav-link" href="{% url 'tms_divergencias' %}"><span class="nav-icon">DV</span>Divergências</a>
+              <a class="nav-link" href="{% url 'tms_rotas' %}"><span class="nav-icon">RT</span>Rotas</a>
+              <a class="nav-link" href="{% url 'tms_capacidade' %}"><span class="nav-icon">CP</span>Capacidade</a>
+              <a class="nav-link" href="{% url 'tms_torre' %}"><span class="nav-icon">TV</span>Torre de Controle</a>
+              <a class="nav-link" href="{% url 'wms_mapa' %}"><span class="nav-icon">WM</span>Mapa do armazém</a>
+              <a class="nav-link" href="{% url 'yms_patio' %}"><span class="nav-icon">YM</span>Pátio e docas</a>
+              <a class="nav-link" href="{% url 'dashboard_indicadores' %}"><span class="nav-icon">IN</span>Indicadores</a>
+            </div>
+          </details>
+        {% endif %}
         {% if can_frota_hub and not is_motorista %}
           <details class="nav-group" data-nav-group="Frota" {% if request.resolver_match.url_name == 'frota_hub' %}data-active="true" open{% endif %}>
             <summary class="nav-heading">Frota</summary>
@@ -5507,14 +5539,15 @@
     </aside>
     <div class="main relative flex flex-col flex-1 min-h-screen">
       <header id="app-topbar" class="topbar erp-shell-header">
-        <div>
-          <div class="page-title-row">
-            {% if show_topbar_back %}
-              <button class="topbar-back" type="button" data-topbar-back data-fallback="{{ topbar_back_url }}" aria-label="Voltar" title="Voltar">&#8592;</button>
-            {% endif %}
-            <h1>{% block page_title %}{{ ui_labels.dashboard }}{% endblock %}</h1>
+        <div class="topbar-identification">
+          <div class="page-title-row top-title">
+            <a class="topbar-home-logo-link" href="{% url 'dashboard' %}" aria-label="Gestão CD — início" title="Gestão CD">
+              <img src="{% static 'painel/img/rede-krill-logo-clean.png' %}" alt="Rede Krill" width="32" height="32">
+            </a>
+            <span class="topbar-brand-name">Gestão CD</span>
+            <h1 class="topbar-page-title">{% block page_title %}{{ ui_labels.dashboard }}{% endblock %}</h1>
           </div>
-          <div class="muted">{{ cd_unidade_label }} - Operação logística</div>
+          <div class="muted topbar-cd-label">CD {{ cd_unidade_label }}</div>
         </div>
         <div class="top-actions">
           {% if can_switch_cd %}
@@ -6053,50 +6086,54 @@
       window.setTimeout(keepOnline, 60000);
     })();
     (function () {
-      document.querySelectorAll("[data-topbar-back]").forEach(function (button) {
-        button.addEventListener("click", function () {
-          const fallback = button.dataset.fallback || "/";
-          if (window.history.length > 1) {
-            window.history.back();
-            return;
-          }
-          window.location.assign(fallback);
-        });
-      });
-    })();
-    (function () {
-      const menuToggle = document.getElementById("mobileMenuToggle");
-      const menuButton = document.querySelector(".mobile-menu-btn");
-      const menuOverlay = document.querySelector(".mobile-menu-overlay");
-      const sidebar = document.querySelector(".sidebar");
-      if (!menuToggle || !menuButton) return;
+      var menuToggle = document.getElementById("mobileMenuToggle");
+      var menuButton = document.querySelector(".mobile-menu-btn");
+      var menuOverlay = document.querySelector(".mobile-menu-overlay");
+      var sidebar = document.querySelector(".sidebar");
+      var closeButtons = Array.prototype.slice.call(document.querySelectorAll("[data-erp-sidebar-close]"));
+      if (!menuToggle) return;
 
-      function syncMenuState() {
-        const isOpen = Boolean(menuToggle.checked);
-        document.body.classList.toggle("menu-open", isOpen);
-        menuButton.setAttribute("aria-label", isOpen ? "Fechar menu" : "Abrir menu");
-        menuButton.setAttribute("aria-expanded", isOpen ? "true" : "false");
+      function setMenuOpen(open) {
+        menuToggle.checked = Boolean(open);
+        document.body.classList.toggle("menu-open", menuToggle.checked);
+        if (menuButton) {
+          menuButton.setAttribute("aria-label", menuToggle.checked ? "Fechar menu" : "Abrir menu");
+          menuButton.setAttribute("aria-expanded", menuToggle.checked ? "true" : "false");
+        }
+        closeButtons.forEach(function (button) {
+          button.setAttribute("aria-expanded", menuToggle.checked ? "true" : "false");
+        });
       }
 
-      menuToggle.addEventListener("change", syncMenuState);
-      if (menuOverlay) menuOverlay.addEventListener("click", function () {
-        menuToggle.checked = false;
-        syncMenuState();
+      function closeMenu(event) {
+        if (event) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+        setMenuOpen(false);
+      }
+
+      menuToggle.addEventListener("change", function () {
+        setMenuOpen(menuToggle.checked);
+      });
+      if (menuOverlay) {
+        menuOverlay.addEventListener("click", closeMenu);
+      }
+      closeButtons.forEach(function (button) {
+        button.addEventListener("click", closeMenu);
       });
       document.addEventListener("pointerdown", function (event) {
         if (!menuToggle.checked) return;
         if (sidebar && sidebar.contains(event.target)) return;
-        if (menuButton.contains(event.target)) return;
-        menuToggle.checked = false;
-        syncMenuState();
+        if (menuButton && menuButton.contains(event.target)) return;
+        setMenuOpen(false);
       });
       document.addEventListener("keydown", function (event) {
         if (event.key === "Escape" && menuToggle.checked) {
-          menuToggle.checked = false;
-          syncMenuState();
+          setMenuOpen(false);
         }
       });
-      syncMenuState();
+      setMenuOpen(menuToggle.checked);
     })();
     (function () {
       const userMenu = document.getElementById("userMenu");
@@ -6391,6 +6428,7 @@
       localStorage.setItem("modelo-teste:lastNotificationCount", String(currentCount));
     })();
   </script>
+  <script src="{% static 'painel/js/gc2-modals.js' %}" defer></script>
   {% include "painel/_pwa_register.html" %}
 </body>
 </html>

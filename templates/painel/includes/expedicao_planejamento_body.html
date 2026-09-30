@@ -1,0 +1,274 @@
+{% load painel_extras %}
+  {% if expedicao_planejamento %}
+    <section class="panel fusao-expedicao-panel {% if module.key == 'carregamento_veiculos' %}load-only-panel{% endif %}" id="planejamento-expedicao">
+      <div class="panel-title">
+        <div>
+          <h2>{% if module.key == "carregamento_veiculos" %}Enviar caminhão{% else %}Saldo de pallets por CD{% endif %}</h2>
+          <p>{% if module.key == "carregamento_veiculos" %}A Frota define o motorista e a placa para cada loja. A inspeção/expedição recebe o aviso no celular e lança a carga na BlueSoft usando essa definição.{% else %}Alimente aqui o saldo atual disponível por loja. A Frota usa este saldo para planejar os veículos.{% endif %}</p>
+        </div>
+      </div>
+      <div class="cd-summary-grid fusao-card-grid">
+        {% for cd_item,total in expedicao_planejamento.totals.items %}
+          <article class="cd-summary-card cd-summary-{{ cd_item }} fusao-metric-card">
+            <span>CD {{ cd_item }}</span>
+            <strong>{{ expedicao_planejamento.totals_livres|get_item:cd_item }}</strong>
+            <small>livre agora</small>
+            <div class="cd-summary-metrics">
+              <span>Saldo atual <strong>{{ total }}</strong></span>
+              <span>Reservado <strong>{{ expedicao_planejamento.totals_vinculados|get_item:cd_item }}</strong></span>
+            </div>
+          </article>
+        {% endfor %}
+      </div>
+      <form class="toolbar js-auto-submit-form" method="get" style="margin-bottom:14px">
+        {% if module.key == "expedicao_planejamento" %}
+          <input type="hidden" name="data" value="{{ expedicao_planejamento.data|date:'Y-m-d' }}">
+        {% else %}
+          <label>Data
+            <input class="field js-auto-submit-control" type="date" name="data" value="{{ expedicao_planejamento.data|date:'Y-m-d' }}">
+          </label>
+        {% endif %}
+        <label>Loja
+          <select class="field js-store-switch js-auto-submit-control" name="loja" data-target="#planejamento-expedicao">
+            {% for row in expedicao_planejamento.rows %}
+              <option value="{{ row.loja }}" {% if row.loja == expedicao_planejamento.selected_loja %}selected{% endif %}>{{ row.loja }}</option>
+            {% endfor %}
+          </select>
+        </label>
+      </form>
+      {% if module.key == "carregamento_veiculos" or can_create_module or can_manage_pallet_balance %}
+          <div class="planning-grid">
+            {% for row in expedicao_planejamento.visible_rows %}
+              {% with current=row.cds|get_item:cd_unidade %}
+              {% if module.key == "expedicao_planejamento" and can_create_module %}
+              <form class="planning-card fusao-planning-card js-store-panel" data-store="{{ row.loja }}" method="post" {% if row.loja != expedicao_planejamento.selected_loja %}hidden{% endif %}>
+                {% csrf_token %}
+                <input type="hidden" name="action" value="salvar_planejamento_expedicao">
+                <input type="hidden" name="data" value="{{ expedicao_planejamento.data|date:'Y-m-d' }}">
+                <input type="hidden" name="loja" value="{{ row.loja }}">
+                <div>
+                  <span class="muted">Loja selecionada</span>
+                  <strong>{{ row.loja }}</strong>
+                </div>
+                {% if expedicao_planejamento.cds|length > 1 %}
+                  <label>CD para alterar
+                    <select class="field" name="cd_destino">
+                      {% for cd_item in expedicao_planejamento.cds %}
+                        <option value="{{ cd_item }}">CD {{ cd_item }}</option>
+                      {% endfor %}
+                    </select>
+                  </label>
+                  <label>Saldo informado no CD escolhido
+                    <input class="field" type="number" min="0" inputmode="numeric" name="qtd_paletes" placeholder="Digite a quantidade">
+                  </label>
+                {% else %}
+                  <label>Saldo informado no CD {{ cd_unidade }}
+                    <input class="field" type="number" min="0" inputmode="numeric" name="qtd_paletes" value="{% if current.item %}{{ current.qtd }}{% endif %}" placeholder="Digite a quantidade">
+                  </label>
+                {% endif %}
+                {% if expedicao_planejamento.cds|length > 1 %}
+                  <div>
+                    <span class="muted">Saldo da loja por CD</span>
+                    {% include "painel/includes/pallet_balance_blocks.html" with cds=expedicao_planejamento.cds row=row show_total_line=1 %}
+                  </div>
+                {% endif %}
+                <div>
+                  <button class="btn" type="submit">Salvar saldo da loja</button>
+                </div>
+              </form>
+              {% endif %}
+              {% if module.key == "expedicao_planejamento" and can_manage_pallet_balance %}
+                <p class="muted js-store-panel" data-store="{{ row.loja }}" {% if row.loja != expedicao_planejamento.selected_loja %}hidden{% endif %}>
+                  Para corrigir o saldo, altere a quantidade acima e salve novamente.
+                </p>
+              {% endif %}
+              {% if module.key == "carregamento_veiculos" and can_link_expedition_loads %}
+              <form class="planning-card fusao-planning-card js-store-panel expedition-link-card" data-store="{{ row.loja }}" method="post" {% if row.loja != expedicao_planejamento.selected_loja %}hidden{% endif %}>
+                {% csrf_token %}
+                <input type="hidden" name="action" value="vincular_carga_expedicao">
+                <input type="hidden" name="data" value="{{ expedicao_planejamento.data|date:'Y-m-d' }}">
+                <input type="hidden" name="loja" value="{{ row.loja }}">
+                <div>
+                  <span class="muted">Definir motorista para a inspeção</span>
+                  <strong>{{ row.loja }}</strong>
+                </div>
+                <div>
+                  <span class="muted">Saldo disponível para vincular</span>
+                  {% include "painel/includes/pallet_balance_blocks.html" with cds=expedicao_planejamento.cds row=row show_total_line=1 %}
+                </div>
+                {% if expedicao_planejamento.cds|length > 1 %}
+                  <div class="form-grid">
+                    {% for cd_item in expedicao_planejamento.cds %}
+                      {% with value=row.cds|get_item:cd_item %}
+                        <label>Pallets do CD {{ cd_item }}
+                          <input class="field js-load-origin-qty" type="number" min="0" max="{{ value.livre }}" inputmode="numeric" name="qtd_paletes_cd_{{ cd_item }}" placeholder="Livre: {{ value.livre }}" data-cd="{{ cd_item }}">
+                        </label>
+                      {% endwith %}
+                    {% endfor %}
+                  </div>
+                  <p class="message warning wide">Se o caminhão passar nos dois CDs, informe quanto sai de cada origem. O saldo será baixado separadamente na confirmação.</p>
+                {% else %}
+                  <label>Pallets para este caminhão
+                    <input class="field js-load-origin-qty" type="number" min="1" max="{{ current.livre }}" inputmode="numeric" name="qtd_paletes" placeholder="Livre: {{ current.livre }}">
+                  </label>
+                {% endif %}
+                <label>Motorista/placa cadastrados
+                  <select class="field js-vehicle-select" name="veiculo_frota">
+                    <option value="">Selecionar ou preencher manualmente</option>
+                    {% for veiculo in veiculos_frota %}
+                      <option value="{{ veiculo.id }}" data-placa="{{ veiculo.placa }}" data-motorista="{{ veiculo.motorista }}" data-plataforma="{{ veiculo.eh_plataforma|yesno:'1,0' }}" data-plataforma-ok="{{ veiculo.plataforma_disponivel|yesno:'1,0' }}">
+                        CD {{ veiculo.cd_unidade }} - {{ veiculo.motorista }} - {{ veiculo.placa }}{% if veiculo.tipo_caminhao %} - {{ veiculo.tipo_caminhao }}{% endif %}{% if veiculo.eh_plataforma and not veiculo.plataforma_operacional %} - Plataforma quebrada{% endif %}
+                      </option>
+                    {% endfor %}
+                  </select>
+                </label>
+                <label>Placa
+                  <input class="field js-vehicle-plate" name="placa" placeholder="Ex.: ABC1D23" autocomplete="off">
+                </label>
+                <label>Motorista
+                  <input class="field js-vehicle-driver" name="motorista" placeholder="Nome do motorista" autocomplete="off">
+                </label>
+                <label>Período
+                  <select class="field" name="periodo">
+                    <option value="manha">Manhã</option>
+                    <option value="tarde">Tarde</option>
+                  </select>
+                </label>
+                <label class="checkline wide">
+                  <input type="checkbox" name="exigir_plataforma" value="1">
+                  <span>Exigir caminhão plataforma nesta carga</span>
+                </label>
+                <label class="wide">Motivo da plataforma
+                  <input class="field" name="motivo_plataforma" placeholder="Ex.: empilhadeira da loja quebrou">
+                </label>
+                {% if not row.total_livre %}
+                  <p class="message warning wide">Sem saldo livre para vincular nesta loja/CD.</p>
+                {% endif %}
+                <div>
+                  <button class="btn" type="submit">Avisar inspeção</button>
+                </div>
+              </form>
+              {% endif %}
+              {% endwith %}
+            {% empty %}
+              <article class="card"><span>Nenhuma loja</span><strong>Cadastre lojas ativas para usar o planejamento.</strong></article>
+            {% endfor %}
+          </div>
+      {% else %}
+        <div class="planning-grid">
+          {% for row in expedicao_planejamento.visible_rows %}
+            <article class="planning-card fusao-planning-card js-store-panel" data-store="{{ row.loja }}" {% if row.loja != expedicao_planejamento.selected_loja %}hidden{% endif %}>
+              <div>
+                <span class="muted">Loja</span>
+                <strong>{{ row.loja }}</strong>
+              </div>
+              <div>
+                <span class="muted">Saldo da loja por CD</span>
+                {% include "painel/includes/pallet_balance_blocks.html" with cds=expedicao_planejamento.cds row=row show_total_line=1 %}
+              </div>
+            </article>
+          {% empty %}
+            <article class="card"><span>Nenhuma loja</span><strong>Cadastre lojas ativas para usar o planejamento.</strong></article>
+          {% endfor %}
+        </div>
+      {% endif %}
+      {% if module.key == "carregamento_veiculos" and can_link_expedition_loads %}
+        <details class="optional-panel fusao-expedicao-panel" style="margin-top:14px">
+          <summary>Vincular várias lojas no mesmo caminhão</summary>
+          <form class="optional-panel-content" method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="vincular_cargas_multiplas_expedicao">
+            <input type="hidden" name="data" value="{{ expedicao_planejamento.data|date:'Y-m-d' }}">
+            <input type="hidden" name="multi_total" value="{{ expedicao_planejamento.rows|length }}">
+            <p class="muted">Use quando o mesmo veículo levar duas ou mais lojas próximas. Marque as lojas, informe a quantidade por CD e salve em uma única operação.</p>
+            <div class="form-grid">
+              <label>Motorista/placa cadastrados
+                <select class="field js-vehicle-select" name="veiculo_frota">
+                  <option value="">Selecionar ou preencher manualmente</option>
+                  {% for veiculo in veiculos_frota %}
+                    <option value="{{ veiculo.id }}" data-placa="{{ veiculo.placa }}" data-motorista="{{ veiculo.motorista }}" data-plataforma="{{ veiculo.eh_plataforma|yesno:'1,0' }}" data-plataforma-ok="{{ veiculo.plataforma_disponivel|yesno:'1,0' }}">
+                      CD {{ veiculo.cd_unidade }} - {{ veiculo.motorista }} - {{ veiculo.placa }}{% if veiculo.tipo_caminhao %} - {{ veiculo.tipo_caminhao }}{% endif %}{% if veiculo.eh_plataforma and not veiculo.plataforma_operacional %} - Plataforma quebrada{% endif %}
+                    </option>
+                  {% endfor %}
+                </select>
+              </label>
+              <label>Placa
+                <input class="field js-vehicle-plate" name="placa" placeholder="Ex.: ABC1D23" autocomplete="off">
+              </label>
+              <label>Motorista
+                <input class="field js-vehicle-driver" name="motorista" placeholder="Nome do motorista" autocomplete="off">
+              </label>
+              <label>Período
+                <select class="field" name="periodo">
+                  <option value="manha">Manhã</option>
+                  <option value="tarde">Tarde</option>
+                </select>
+              </label>
+              <label class="checkline wide">
+                <input type="checkbox" name="exigir_plataforma" value="1">
+                <span>Exigir caminhão plataforma nesta carga</span>
+              </label>
+              <label class="wide">Motivo da plataforma
+                <input class="field" name="motivo_plataforma" placeholder="Ex.: empilhadeira da loja quebrou">
+              </label>
+            </div>
+            <div class="multi-store-list">
+              {% for row in expedicao_planejamento.rows %}
+                {% with row_index=forloop.counter %}
+                <article class="multi-store-row">
+                  <label class="checkline">
+                    <input type="checkbox" name="multi_ativo_{{ row_index }}" value="1">
+                    <span>{{ row.loja }}</span>
+                  </label>
+                  <input type="hidden" name="multi_loja_{{ row_index }}" value="{{ row.loja }}">
+                  <div class="form-grid compact-form-grid">
+                    {% for cd_item in expedicao_planejamento.cds %}
+                      {% with value=row.cds|get_item:cd_item %}
+                        <label>CD {{ cd_item }}
+                          <input class="field" type="number" min="0" max="{{ value.livre }}" inputmode="numeric" name="multi_qtd_{{ row_index }}_{{ cd_item }}" placeholder="Livre: {{ value.livre }}">
+                        </label>
+                      {% endwith %}
+                    {% endfor %}
+                  </div>
+                </article>
+                {% endwith %}
+              {% endfor %}
+            </div>
+            <button class="btn" type="submit">Vincular lojas selecionadas</button>
+          </form>
+        </details>
+      {% endif %}
+      {% if module.key == "carregamento_veiculos" and expedicao_planejamento.vinculos %}
+        <details class="optional-panel fusao-expedicao-panel" style="margin-top:14px">
+          <summary>Caminhões definidos para esta loja</summary>
+          <div class="optional-panel-content expedition-recent-list">
+            {% for item in expedicao_planejamento.vinculos %}
+              <article class="expedition-recent-card">
+                <div class="expedition-recent-head">
+                  <div>
+                    <strong>{{ item.motorista|default:"Sem motorista" }}</strong>
+                    <span>CD {{ item.cd_unidade }} · {{ item.placa|default:"Sem placa" }} · {{ item.qtd_paletes }} pallet(s)</span>
+                  </div>
+                  <span class="status-pill">{{ item.get_periodo_display }}</span>
+                </div>
+                {% if can_link_expedition_loads %}
+                  <form class="inline-form" method="post" onsubmit="return confirm('Cancelar esta reserva?O saldo ficará livre para outro caminhão.')">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="cancelar_vinculo_expedicao">
+                    <input type="hidden" name="vinculo_id" value="{{ item.pk }}">
+                    <input type="hidden" name="data" value="{{ expedicao_planejamento.data|date:'Y-m-d' }}">
+                    <input type="hidden" name="loja" value="{{ expedicao_planejamento.selected_loja }}">
+                    <input class="field" name="motivo_cancelamento" placeholder="Motivo opcional">
+                    <button class="btn small secondary" type="submit">Cancelar reserva</button>
+                  </form>
+                {% endif %}
+              </article>
+            {% endfor %}
+          </div>
+        </details>
+      {% endif %}
+    </section>
+  {% endif %}
+  {% if lojas_prontas_carregamento %}
+    {% include "painel/includes/lojas_prontas_body.html" %}
+  {% endif %}

@@ -1,11 +1,12 @@
+# Blueprint quando o Root Directory do serviço no Render é gestao-cd-2/
 services:
   - type: web
     name: gestao-cd-2
     runtime: python
     plan: free
     rootDir: .
-    buildCommand: "pip install -r requirements.txt && python manage.py collectstatic --noinput --clear"
-    startCommand: "python manage.py migrate --noinput && python manage.py ensure_master && gunicorn assistente_krill_web.wsgi:application --workers 2 --threads 4 --timeout 120"
+    buildCommand: "pip install -r requirements.txt && PYTHONPATH=. python manage.py collectstatic --noinput --clear"
+    startCommand: "PYTHONPATH=. python manage.py migrate --noinput && PYTHONPATH=. python manage.py ensure_master && PYTHONPATH=. gunicorn assistente_krill_web.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --threads 4 --timeout 120"
     envVars:
       - key: PYTHON_VERSION
         value: "3.14.6"

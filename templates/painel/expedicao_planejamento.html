@@ -1,0 +1,86 @@
+{% extends "painel/base.html" %}
+{% load painel_extras %}
+{% block title %}{% if module.key == 'carregamento_veiculos' %}Enviar Caminhão{% else %}Saldo de Pallets{% endif %} - Gestão CD{% endblock %}
+{% block page_title %}{% if module.key == 'carregamento_veiculos' %}Enviar Caminhão{% else %}Saldo de Pallets{% endif %}{% endblock %}
+{% block content %}
+<div class="gc2-page gc2-module" id="gc2-expedicao_planejamento">
+{% include "painel/includes/expedicao_planejamento_body.html" %}
+{% if pallet_store_history %}
+  <details class="panel pallet-history-panel">
+    <summary>
+      <span>Histórico da loja selecionada</span>
+      <span class="metric-pill">{{ pallet_store_history|length }}</span>
+    </summary>
+    <div class="pallet-history-list">
+      {% for item in pallet_store_history %}
+        <article class="pallet-history-item">
+          <time>{{ item.quando|date:"d/m H:i" }}</time>
+          <span>{{ item.texto }}</span>
+        </article>
+      {% endfor %}
+    </div>
+  </details>
+{% endif %}
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  function setStorePanelState(panel, active) {
+    panel.hidden = !active;
+    panel.querySelectorAll("input, select, textarea, button").forEach(function (field) {
+      field.disabled = !active;
+    });
+  }
+  document.querySelectorAll(".js-store-switch").forEach(function (select) {
+    var target = document.querySelector(select.dataset.target || "");
+    if (!target) return;
+    var panels = Array.from(target.querySelectorAll(".js-store-panel"));
+    function applyStoreSelection(updateUrl) {
+      var selected = select.value;
+      panels.forEach(function (panel) {
+        setStorePanelState(panel, panel.dataset.store === selected);
+      });
+      if (updateUrl && window.history && window.history.replaceState) {
+        var url = new URL(window.location.href);
+        if (selected) url.searchParams.set("loja", selected);
+        window.history.replaceState({}, "", url.toString());
+      }
+    }
+    applyStoreSelection(false);
+    select.addEventListener("change", function () { applyStoreSelection(true); });
+  });
+  document.querySelectorAll(".js-auto-submit-control").forEach(function (control) {
+    control.addEventListener("change", function () {
+      var form = control.closest("form");
+      if (form) form.submit();
+    });
+  });
+  document.querySelectorAll(".auto-grow-textarea").forEach(function (field) {
+    function grow() {
+      field.style.height = "auto";
+      field.style.height = Math.min(field.scrollHeight, 180) + "px";
+    }
+    field.addEventListener("input", grow);
+    grow();
+  });
+  document.querySelectorAll(".js-remount-toggle").forEach(function (toggle) {
+    function updateRemountFields() {
+      var form = toggle.closest("form");
+      if (!form) return;
+      var box = form.querySelector(".remount-fields");
+      if (!box) return;
+      var panel = toggle.closest(".js-store-panel");
+      var enabled = toggle.checked && !(panel && panel.hidden);
+      box.hidden = !enabled;
+      box.querySelectorAll("input, select, textarea").forEach(function (field) {
+        field.disabled = !enabled;
+        if (!enabled && field.name === "qtd_remontavel") field.value = "";
+      });
+    }
+    updateRemountFields();
+    toggle.addEventListener("change", updateRemountFields);
+  });
+});
+</script>
+
+{% endblock %}

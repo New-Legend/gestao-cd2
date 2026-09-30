@@ -1,0 +1,92 @@
+{% extends "painel/base.html" %}
+{% block title %}Central de Expedição - Gestão CD{% endblock %}
+{% block page_title %}Central de Expedição{% endblock %}
+{% block content %}
+<style>
+  .tms-expedition-summary { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin-bottom:16px; }
+  .tms-expedition-summary article, .tms-expedition-trip, .tms-expedition-empty {
+    background:#fff; border:1px solid #e2e8f0; border-radius:12px; box-shadow:0 8px 22px rgba(6,29,55,.06);
+  }
+  .tms-expedition-summary article { padding:14px 16px; border-top:4px solid #061d37; }
+  .tms-expedition-summary span { color:#627084; font-size:12px; font-weight:800; text-transform:uppercase; }
+  .tms-expedition-summary strong { display:block; color:#061d37; font-size:28px; }
+  .tms-expedition-list { display:grid; gap:14px; }
+  .tms-expedition-trip { padding:16px; }
+  .tms-expedition-trip-head, .tms-expedition-body { display:flex; flex-wrap:wrap; justify-content:space-between; gap:12px; }
+  .tms-expedition-status { border-radius:999px; padding:6px 10px; font-weight:800; font-size:13px; }
+  .tms-expedition-status.ok { background:#ecfdf3; color:#148a42; }
+  .tms-expedition-status.warning { background:#fff7d6; color:#755100; }
+  .tms-expedition-status.danger { background:#fee2e2; color:#d71920; }
+  .tms-expedition-capacity { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; flex:1 1 280px; }
+  .tms-expedition-capacity div { background:#f8fafc; border-radius:10px; padding:10px; }
+  .tms-expedition-capacity span, .tms-expedition-timeline span { color:#627084; font-size:12px; font-weight:700; }
+  .tms-expedition-timeline ol { margin:8px 0 0; padding:0; list-style:none; display:grid; gap:6px; }
+  .tms-expedition-timeline { flex:1 1 220px; }
+  .tms-expedition-action { display:flex; flex-direction:column; gap:8px; align-items:flex-start; }
+  .tms-expedition-empty { padding:28px; text-align:center; }
+  @media (max-width:800px) {
+    .tms-expedition-summary, .tms-expedition-capacity { grid-template-columns:1fr 1fr; }
+  }
+</style>
+
+<section class="bg-white border border-slate-200 rounded-lg p-4 shadow-sm mb-4">
+  <div class="flex flex-wrap items-end justify-between gap-3">
+    <div>
+      <span class="text-xs font-bold tracking-widest text-[#073b73] uppercase">TMS / Expedição do dia</span>
+      <h2 class="text-2xl font-semibold mt-1">Central de Expedição</h2>
+      <p class="text-slate-600 mt-1">Decida a próxima ação com capacidade, carga e telemetria no mesmo lugar.</p>
+    </div>
+    <a class="btn secondary border px-3 py-2 rounded-lg" href="{% url 'tms_expedicao' %}">Atualizar</a>
+  </div>
+</section>
+
+{% if denied %}
+<section class="tms-expedition-empty"><h2>Sem permissão</h2><p>{{ message }}</p></section>
+{% else %}
+<section class="tms-expedition-summary" aria-label="Resumo das viagens">
+  <article><span>Viagens abertas</span><strong>{{ snapshot.summary.total }}</strong></article>
+  <article><span>Prontas</span><strong>{{ snapshot.summary.approved }}</strong></article>
+  <article><span>Em conferência</span><strong>{{ snapshot.summary.attention }}</strong></article>
+  <article><span>Bloqueadas</span><strong>{{ snapshot.summary.blocked }}</strong></article>
+</section>
+<section class="tms-expedition-list" aria-label="Viagens do dia">
+  {% for trip in snapshot.trips %}
+  <article class="tms-expedition-trip" id="viagem-{{ trip.id }}">
+    <header class="tms-expedition-trip-head">
+      <div>
+        <span class="text-xs font-bold tracking-widest text-[#073b73] uppercase">Viagem #{{ trip.id }} · {{ trip.originCd }}</span>
+        <h2 class="text-xl font-semibold">{{ trip.destination }}</h2>
+        <p class="text-slate-600">{{ trip.driver }} · {{ trip.vehicle.plate }} · {{ trip.totals.stops }} parada{{ trip.totals.stops|pluralize }}</p>
+      </div>
+      <span class="tms-expedition-status {{ trip.validation.tone }}">{{ trip.validation.title }}</span>
+    </header>
+    <div class="tms-expedition-body mt-3">
+      <section class="tms-expedition-capacity" aria-label="Validação de capacidade">
+        <div><span>Peso</span><strong>{{ trip.totals.weightKg }} <small>/ {{ trip.vehicle.maxKg }} kg</small></strong></div>
+        <div><span>Cubagem</span><strong>{{ trip.totals.volumeM3 }} <small>/ {{ trip.vehicle.maxM3 }} m³</small></strong></div>
+        <div><span>Mapa de carga</span><strong>{{ trip.totals.pallets }} <small>/ {{ trip.vehicle.maxPallets }} pallets</small></strong></div>
+        <p class="text-sm text-slate-600 col-span-full">{{ trip.validation.detail }}</p>
+      </section>
+      <section class="tms-expedition-timeline" aria-label="Linha do tempo da telemetria">
+        <span>Telemetria</span>
+        <ol>
+          {% for event in trip.timeline %}
+          <li><strong>{{ event.label }}</strong>{% if event.when %}<small class="block text-slate-500">{{ event.when }}</small>{% endif %}</li>
+          {% endfor %}
+        </ol>
+      </section>
+      <div class="tms-expedition-action">
+        <span class="status-pill {{ trip.status_class }}">{{ trip.status_label }}</span>
+        <a class="btn bg-slate-950 text-white px-3 py-2 rounded-lg" href="{{ trip.action.href }}">{{ trip.action.label }}</a>
+      </div>
+    </div>
+  </article>
+  {% empty %}
+  <section class="tms-expedition-empty">
+    <h2>Nenhuma viagem em aberto</h2>
+    <p>As próximas viagens em pátio aparecerão aqui automaticamente.</p>
+  </section>
+  {% endfor %}
+</section>
+{% endif %}
+{% endblock %}

@@ -42,10 +42,16 @@ git push -u origin main
 
 ## Render
 
-1. New Web Service → conectar `gestao-cd-2`
-2. Usar `render.yaml` (rootDir `.`)
+### Opção A — monorepo `New-Legend/gestao-cd` (recomendado agora)
+1. New Blueprint / Web Service → repo `gestao-cd`
+2. Usar o `render.yaml` **na raiz do monorepo** (`rootDir: gestao-cd-2`)
 3. Ligar `DATABASE_URL` ao PostgreSQL existente (`gestaocd-db` / o mesmo do piloto)
 4. Definir `MODELO_TESTE_MASTER_PASSWORD` e demais secrets
+
+### Opção B — repo dedicado `gestao-cd-2`
+1. New Web Service → conectar `gestao-cd-2`
+2. Usar `render.yaml` desta pasta (`rootDir: .`)
+3. Ligar `DATABASE_URL` e secrets como acima
 
 ## Local
 

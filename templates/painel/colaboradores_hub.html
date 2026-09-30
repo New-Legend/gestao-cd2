@@ -5,56 +5,63 @@
 {% block page_title %}Gestão de Colaboradores{% endblock %}
 
 {% block content %}
-<section class="panel fusao-colab-panel">
-  <div class="panel-title">
-    <div>
-      <h2>Visão rápida de colaboradores</h2>
-      <p>Um ponto único para acompanhar férias, quadro do dia, ausências, gargalos e alertas por setor.</p>
-    </div>
-    <span class="status-pill">{{ data|date:"d/m/Y" }}</span>
-  </div>
-  <div class="cards fusao-card-grid">
-    {% for label, value in colaboradores_metrics %}
-      <article class="card fusao-metric-card">
-        <span>{{ label }}</span>
-        <strong>{{ value }}</strong>
-      </article>
-    {% endfor %}
-  </div>
-</section>
-
-{% for section in colaboradores_sections %}
-  <section class="panel fusao-colab-panel mt-4">
-    <div class="panel-title">
-      <div>
-        <h2>{{ section.title }}</h2>
-        <p>{{ section.description }}</p>
+<div class="gc2-page" id="gc2ColabHub">
+  <section class="gc2-canvas">
+    <div class="gc2-heading">
+      <div class="gc2-heading-inner">
+        <div>
+          <span class="erp-eyebrow">Rede Krill · CD {{ cd_unidade_label }}</span>
+          <h1>Gestão de Colaboradores</h1>
+          <p>Férias, quadro do dia, ausências, gargalos e alertas por setor em um só lugar.</p>
+        </div>
+        <span class="status-pill">{{ data|date:"d/m/Y" }}</span>
       </div>
     </div>
-    <div class="cards frota-hub-grid fusao-card-grid">
-      {% for card in section.cards %}
-        <a class="card frota-hub-card home-action-card" href="{{ card.url }}">
-          <strong>{{ card.title }}</strong>
-          <small>{{ card.description }}</small>
-          {% if card.highlight %}<em class="text-[#073b73] font-extrabold">{{ card.highlight }}</em>{% endif %}
-        </a>
+
+    <div class="gc2-toolbar">
+      <div>
+        <span class="erp-eyebrow">Indicadores</span>
+        <h2 class="gc2-section-title">Visão rápida</h2>
+        <p class="gc2-section-copy">{{ colaboradores_metrics|length }} métrica(s) do dia.</p>
+      </div>
+      <button class="btn secondary" type="button" data-gc2-open-modal="gc2ColabMetricsModal">Ver resumo</button>
+    </div>
+    <div class="gc2-metrics">
+      {% for label, value in colaboradores_metrics %}
+        <button type="button" class="gc2-metric" data-gc2-open-modal="gc2ColabMetricsModal">
+          <span>{{ label }}</span>
+          <strong>{{ value }}</strong>
+        </button>
       {% endfor %}
     </div>
   </section>
-{% endfor %}
 
-{% if capacidade_operacao %}
-  <details id="gargalos-colaboradores" class="panel records-panel fusao-colab-panel mt-4" open>
-    <summary>
-      <span>Gargalos da operação</span>
-      <span class="metric-pill">{{ gargalos_colaboradores|length }}</span>
-    </summary>
-    <div class="records-panel-content">
-      <div class="panel-title">
+  {% for section in colaboradores_sections %}
+    <section class="gc2-canvas">
+      <h2 class="gc2-section-title">{{ section.title }}</h2>
+      <p class="gc2-section-copy">{{ section.description }}</p>
+      <div class="gc2-balloon-grid">
+        {% for card in section.cards %}
+          <a class="gc2-balloon" href="{{ card.url }}">
+            <span class="gc2-balloon-icon" aria-hidden="true">{{ card.icon|default:"CO" }}</span>
+            <strong>{{ card.title }}</strong>
+            <small>{{ card.description }}</small>
+            {% if card.highlight %}<em>{{ card.highlight }}</em>{% endif %}
+          </a>
+        {% endfor %}
+      </div>
+    </section>
+  {% endfor %}
+
+  {% if capacidade_operacao %}
+    <section class="gc2-canvas" id="gargalos-colaboradores">
+      <div class="gc2-toolbar">
         <div>
-          <h2>Setores em atenção</h2>
-          <p>Leitura baseada no quadro do dia, férias e ausências lançadas.</p>
+          <span class="erp-eyebrow">Capacidade</span>
+          <h2 class="gc2-section-title">Gargalos da operação</h2>
+          <p class="gc2-section-copy">Leitura baseada no quadro do dia, férias e ausências.</p>
         </div>
+        <span class="metric-pill">{{ gargalos_colaboradores|length }}</span>
       </div>
       <div class="ops-capacity-grid">
         {% for row in gargalos_colaboradores %}
@@ -78,30 +85,28 @@
             <p>{{ row.leitura }}</p>
           </article>
         {% empty %}
-          <article class="card fusao-metric-card">
+          <article class="gc2-metric" style="cursor:default">
             <span>Sem gargalo crítico</span>
-            <strong>Nenhum setor em atenção no momento.</strong>
+            <strong style="font-size:16px">Nenhum setor em atenção no momento.</strong>
           </article>
         {% endfor %}
       </div>
-    </div>
-  </details>
-{% endif %}
+    </section>
+  {% endif %}
 
-<details id="alertas-ferias" class="panel records-panel fusao-colab-panel mt-4">
-  <summary>
-    <span>Alertas de férias</span>
-    <span class="metric-pill">{{ ferias_alertas|length }}</span>
-  </summary>
-  <div class="records-panel-content">
-    <div class="panel-title">
+  <section class="gc2-canvas" id="alertas-ferias">
+    <div class="gc2-toolbar">
       <div>
-        <h2>Próximos alertas</h2>
-        <p>Colaboradores com férias próximas, em andamento ou retorno previsto.</p>
+        <span class="erp-eyebrow">Férias</span>
+        <h2 class="gc2-section-title">Alertas de férias</h2>
+        <p class="gc2-section-copy">Próximos, em andamento ou com retorno previsto.</p>
       </div>
+      <button class="btn secondary" type="button" data-gc2-open-modal="gc2ColabFeriasModal">
+        Ver alertas ({{ ferias_alertas|length }})
+      </button>
     </div>
     <div class="approval-list">
-      {% for row in ferias_alertas %}
+      {% for row in ferias_alertas|slice:":4" %}
         <article class="approval-card">
           <div class="approval-card-head">
             <div>
@@ -117,9 +122,9 @@
           </div>
         </article>
       {% empty %}
-        <article class="card fusao-metric-card">
+        <article class="gc2-metric" style="cursor:default">
           <span>Sem alerta</span>
-          <strong>Nenhuma férias próxima no período configurado.</strong>
+          <strong style="font-size:16px">Nenhuma férias próxima no período configurado.</strong>
         </article>
       {% endfor %}
     </div>
@@ -163,16 +168,65 @@
         <button class="btn secondary" type="submit">Processar alertas agora</button>
       </form>
     {% endif %}
-  </div>
-</details>
+  </section>
 
-<details id="epi-colaboradores" class="panel records-panel fusao-colab-panel mt-4">
-  <summary>
-    <span>EPI e colaboradores</span>
+  <section class="gc2-canvas" id="epi-colaboradores">
+    <span class="erp-eyebrow">EPI</span>
+    <h2 class="gc2-section-title">EPI e colaboradores</h2>
+    <p class="gc2-section-copy">Área reservada para entrega, validade, troca e pendências de EPI por colaborador.</p>
     <span class="metric-pill">Em breve</span>
-  </summary>
-  <div class="records-panel-content">
-    <p class="muted">Área reservada para entrega, validade, troca e pendências de EPI por colaborador.</p>
+  </section>
+
+  <div class="gc2-modal" id="gc2ColabMetricsModal" hidden data-gc2-modal>
+    <div class="gc2-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="gc2ColabMetricsTitle">
+      <div class="gc2-modal-header">
+        <div>
+          <span class="erp-eyebrow">CD {{ cd_unidade_label }}</span>
+          <h2 id="gc2ColabMetricsTitle">Resumo de Colaboradores</h2>
+        </div>
+        <button class="gc2-modal-close" type="button" data-gc2-close-modal aria-label="Fechar">×</button>
+      </div>
+      <div class="gc2-metrics">
+        {% for label, value in colaboradores_metrics %}
+          <article class="gc2-metric" style="cursor:default">
+            <span>{{ label }}</span>
+            <strong>{{ value }}</strong>
+          </article>
+        {% endfor %}
+      </div>
+    </div>
   </div>
-</details>
+
+  <div class="gc2-modal" id="gc2ColabFeriasModal" hidden data-gc2-modal>
+    <div class="gc2-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="gc2ColabFeriasTitle">
+      <div class="gc2-modal-header">
+        <div>
+          <span class="erp-eyebrow">{{ ferias_alertas|length }} alerta(s)</span>
+          <h2 id="gc2ColabFeriasTitle">Alertas de férias</h2>
+        </div>
+        <button class="gc2-modal-close" type="button" data-gc2-close-modal aria-label="Fechar">×</button>
+      </div>
+      <div class="approval-list">
+        {% for row in ferias_alertas %}
+          <article class="approval-card">
+            <div class="approval-card-head">
+              <div>
+                <strong>{{ row.colaborador }}</strong>
+                <span>{{ row.get_setor_display }} · {{ row.funcao|default:"Função não informada" }}</span>
+              </div>
+              <span class="status-pill">{{ row.get_status_display }}</span>
+            </div>
+            <div class="record-detail-grid">
+              <span>Início: {{ row.inicio_ferias|date:"d/m/Y" }}</span>
+              <span>Fim: {{ row.fim_ferias|date:"d/m/Y" }}</span>
+              <span>Retorno: {{ row.retorno_previsto|date:"d/m/Y" }}</span>
+            </div>
+          </article>
+        {% empty %}
+          <p class="muted">Nenhuma férias próxima no período configurado.</p>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}

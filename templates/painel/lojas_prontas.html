@@ -1,0 +1,138 @@
+{% extends "painel/base.html" %}
+{% load painel_extras %}
+{% block title %}{% if ready_load_queue_mode %}Fila de carregamento{% else %}Informar loja pronta{% endif %} - Gestão CD{% endblock %}
+{% block page_title %}{% if ready_load_queue_mode %}Fila de carregamento{% else %}Informar loja pronta{% endif %}{% endblock %}
+{% block content %}
+<div class="gc2-page gc2-module" id="gc2LojasProntas">
+{% include "painel/includes/lojas_prontas_body.html" %}
+
+</div>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  function setStorePanelState(panel, active) {
+    panel.hidden = !active;
+    panel.querySelectorAll("input, select, textarea, button").forEach(function (field) {
+      field.disabled = !active;
+    });
+  }
+  document.querySelectorAll(".js-store-switch").forEach(function (select) {
+    var target = document.querySelector(select.dataset.target || "");
+    if (!target) return;
+    var panels = Array.from(target.querySelectorAll(".js-store-panel"));
+    function applyStoreSelection(updateUrl) {
+      var selected = select.value;
+      panels.forEach(function (panel) {
+        setStorePanelState(panel, panel.dataset.store === selected);
+      });
+      if (updateUrl && window.history && window.history.replaceState) {
+        var url = new URL(window.location.href);
+        if (selected) url.searchParams.set("loja", selected);
+        window.history.replaceState({}, "", url.toString());
+      }
+    }
+    applyStoreSelection(false);
+    select.addEventListener("change", function () { applyStoreSelection(true); });
+  });
+  document.querySelectorAll(".js-auto-submit-control").forEach(function (control) {
+    control.addEventListener("change", function () {
+      var form = control.closest("form");
+      if (form) form.submit();
+    });
+  });
+  document.querySelectorAll(".js-ready-load-cd-select").forEach(function (select) {
+    var form = select.closest("form");
+    if (!form) return;
+    var rules = Array.from(form.querySelectorAll("[data-ready-load-rule]"));
+    var qtdText = form.querySelector("[data-ready-load-qtd-text]");
+    var extraText = form.querySelector("[data-ready-load-extra-text]");
+    var saldo801 = form.querySelector("[data-ready-load-801-balance]");
+    function syncReadyLoadRule() {
+      var selected = select.value;
+      rules.forEach(function (rule) {
+        rule.classList.toggle("is-muted", selected && rule.dataset.readyLoadRule !== selected);
+        rule.classList.toggle("is-selected", selected && rule.dataset.readyLoadRule === selected);
+      });
+      if (qtdText) qtdText.textContent = selected === "801" ? "Qtd. pronta agora" : "Pallets prontos";
+      if (extraText) extraText.textContent = selected === "801" ? "Observação de remontagem" : "Observação opcional";
+      if (saldo801) {
+        var saldo801Input = saldo801.querySelector("input");
+        saldo801.hidden = selected !== "801";
+        if (saldo801Input) {
+          saldo801Input.required = selected === "801";
+          if (selected !== "801") saldo801Input.value = "";
+        }
+      }
+    }
+    select.addEventListener("change", syncReadyLoadRule);
+    syncReadyLoadRule();
+  });
+  document.querySelectorAll(".auto-grow-textarea").forEach(function (field) {
+    function grow() {
+      field.style.height = "auto";
+      field.style.height = Math.min(field.scrollHeight, 180) + "px";
+    }
+    field.addEventListener("input", grow);
+    grow();
+  });
+
+  function syncReadyLoadPicker() {
+    var picks = Array.from(document.querySelectorAll("[data-ready-load-pick]:checked"));
+    var openButton = document.querySelector("[data-ready-load-open]");
+    var summary = document.querySelector("[data-ready-load-selection-summary]");
+    var submitBulk = document.querySelector("[data-ready-load-submit-bulk]");
+    var total = picks.reduce(function (sum, input) { return sum + (Number(input.dataset.readyLoadQtd) || 0); }, 0);
+    if (summary) {
+      summary.textContent = picks.length
+        ? (picks.length + " loja(s) · " + total + " pallet(s)")
+        : "Selecione uma ou mais lojas prontas.";
+    }
+    if (openButton) openButton.disabled = !picks.length;
+    document.querySelectorAll("[data-ready-load-selected-row]").forEach(function (row) {
+      var id = row.getAttribute("data-ready-load-selected-row");
+      var selected = picks.some(function (pick) { return pick.value === id; });
+      row.hidden = !selected;
+      row.querySelectorAll("input").forEach(function (input) { input.disabled = !selected; });
+    });
+    if (submitBulk) submitBulk.disabled = !picks.length;
+  }
+  function openReadyModal() {
+    var modal = document.getElementById("ready-load-bulk-modal");
+    if (!modal) return;
+    modal.hidden = false;
+    document.body.style.overflow = "hidden";
+    syncReadyLoadPicker();
+  }
+  function closeReadyModal() {
+    var modal = document.getElementById("ready-load-bulk-modal");
+    if (!modal) return;
+    modal.hidden = true;
+    document.body.style.overflow = "";
+  }
+  document.addEventListener("change", function (event) {
+    if (event.target.matches("[data-ready-load-pick]")) syncReadyLoadPicker();
+  });
+  document.addEventListener("click", function (event) {
+    var openOne = event.target.closest("[data-ready-load-open-one]");
+    if (openOne) {
+      document.querySelectorAll("[data-ready-load-pick]").forEach(function (box) {
+        box.checked = box.value === openOne.getAttribute("data-ready-load-open-one");
+      });
+      syncReadyLoadPicker();
+      openReadyModal();
+      return;
+    }
+    if (event.target.closest("[data-ready-load-open]")) {
+      openReadyModal();
+      return;
+    }
+    if (event.target.closest("[data-ready-load-close]")) {
+      closeReadyModal();
+      return;
+    }
+    var modal = document.getElementById("ready-load-bulk-modal");
+    if (modal && event.target === modal) closeReadyModal();
+  });
+  syncReadyLoadPicker();
+});
+</script>
+{% endblock %}

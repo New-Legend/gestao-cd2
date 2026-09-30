@@ -5,92 +5,226 @@
 {% block page_title %}Central da Frota{% endblock %}
 
 {% block content %}
-<section class="panel">
-  <div class="panel-title">
-    <div>
-      <h2>Escolha a rotina</h2>
-      <p>Carregamentos, disponibilidade, check-list e cadastros da Frota em um lugar só.</p>
-    </div>
-    <form class="toolbar compact-toolbar" method="get">
-      <label>Data
-        <input class="field js-auto-submit-control" type="date" name="data" value="{{ data|date:'Y-m-d' }}">
-      </label>
-    </form>
-  </div>
-</section>
+<style>
+  .gc2-frota { --gc-ink:#020617; --gc-muted:#64748b; --gc-line:#e2e8f0; --gc-blue:#073b73; }
+  .gc2-frota .frota-canvas {
+    background:#fff; border:1px solid var(--gc-line); border-radius:16px; padding:16px 18px;
+    box-shadow:0 10px 28px rgba(15,23,42,.08); margin-bottom:14px;
+  }
+  .gc2-frota .frota-heading {
+    position:relative; overflow:hidden; margin:0 0 14px; border:1px solid var(--gc-line);
+    border-radius:14px; background:#fff;
+  }
+  .gc2-frota .frota-heading::before {
+    content:""; position:absolute; inset:0 auto auto 0; width:100%; height:3px;
+    background:linear-gradient(90deg,#073b73,#061d37,transparent);
+  }
+  .gc2-frota .frota-heading-inner {
+    display:flex; flex-wrap:wrap; align-items:flex-end; justify-content:space-between; gap:12px;
+    padding:14px 16px;
+  }
+  .gc2-frota .erp-eyebrow {
+    display:inline-block; margin-bottom:4px; color:#073b73; font-size:11px; font-weight:800;
+    letter-spacing:.14em; text-transform:uppercase;
+  }
+  .gc2-frota .frota-heading h1 { margin:0; font-size:clamp(22px,3vw,28px); color:#0f172a; font-weight:800; }
+  .gc2-frota .frota-heading p { margin:4px 0 0; color:var(--gc-muted); font-size:13px; }
+  .gc2-frota .frota-date-form { display:flex; align-items:center; gap:8px; margin:0; }
+  .gc2-frota .frota-date-form label { margin:0; font-size:12px; font-weight:800; color:#334155; }
+  .gc2-frota .frota-date-form .field { min-height:40px; border-radius:10px; }
+  .gc2-frota .frota-section { margin-top:14px; }
+  .gc2-frota .frota-section-title { margin:0 0 4px; font-size:17px; font-weight:800; color:#0f172a; }
+  .gc2-frota .frota-section-copy { margin:0 0 12px; font-size:13px; color:var(--gc-muted); }
+  .gc2-frota .frota-balloon-grid {
+    display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px;
+  }
+  .gc2-frota .frota-balloon {
+    display:grid; gap:8px; min-height:122px; padding:16px; text-decoration:none; color:inherit;
+    background:#fff; border:1px solid var(--gc-line); border-radius:22px;
+    box-shadow:0 8px 22px rgba(15,23,42,.07); position:relative; overflow:hidden;
+    transition:transform .15s ease, box-shadow .15s ease;
+  }
+  .gc2-frota .frota-balloon::before {
+    content:""; position:absolute; top:0; left:0; width:100%; height:4px;
+    background:linear-gradient(90deg,#073b73,#061d37,transparent);
+  }
+  .gc2-frota .frota-balloon:hover {
+    transform:translateY(-2px); box-shadow:0 14px 28px rgba(15,23,42,.12);
+  }
+  .gc2-frota .frota-balloon-icon {
+    display:grid; place-items:center; width:44px; height:44px; border-radius:999px;
+    background:linear-gradient(145deg,#061d37,#073b73); color:#ffd21f; font-size:13px; font-weight:800;
+    box-shadow:0 6px 14px rgba(6,29,55,.18);
+  }
+  .gc2-frota .frota-balloon strong { font-size:15px; color:#0f172a; line-height:1.25; }
+  .gc2-frota .frota-balloon small { color:var(--gc-muted); font-size:12px; line-height:1.35; }
+  .gc2-frota .frota-balloon em {
+    display:inline-flex; align-self:start; margin-top:auto; padding:4px 10px; border-radius:999px;
+    background:#eff6ff; color:#073b73; font-style:normal; font-size:11px; font-weight:800;
+  }
+  .gc2-frota .frota-metrics {
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:12px;
+  }
+  .gc2-frota .frota-metric {
+    background:#fff; border:1px solid var(--gc-line); border-radius:18px; border-top:4px solid #061d37;
+    padding:14px 16px; box-shadow:0 8px 20px rgba(6,29,55,.05); text-align:left; cursor:pointer; width:100%;
+  }
+  .gc2-frota .frota-metric span {
+    display:block; color:var(--gc-muted); font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.04em;
+  }
+  .gc2-frota .frota-metric strong { display:block; margin-top:6px; color:#061d37; font-size:24px; line-height:1.1; }
+  .gc2-frota .cd-summary-grid {
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px;
+  }
+  .gc2-frota .cd-summary-card {
+    background:#fff; border:1px solid var(--gc-line); border-radius:18px; padding:14px 16px;
+    box-shadow:0 8px 20px rgba(6,29,55,.05);
+  }
+  .gc2-frota .cd-summary-card > span { color:var(--gc-muted); font-size:12px; font-weight:800; }
+  .gc2-frota .cd-summary-card > strong { display:block; margin:4px 0 2px; font-size:28px; color:#061d37; }
+  .gc2-frota .cd-summary-card > small { color:var(--gc-muted); font-size:12px; }
+  .gc2-frota .cd-summary-metrics {
+    display:grid; gap:4px; margin-top:10px; padding-top:10px; border-top:1px solid #eef2f7;
+    font-size:12px; color:#475569;
+  }
+  .gc2-frota .frota-toolbar {
+    display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:space-between; margin-bottom:12px;
+  }
+  .gc2-frota .gc2-modal[hidden] { display:none !important; }
+  .gc2-frota .gc2-modal {
+    position:fixed; inset:0; z-index:80; display:grid; place-items:end center;
+    padding:16px; background:rgba(2,6,23,.48);
+  }
+  .gc2-frota .gc2-modal-dialog {
+    width:min(720px,100%); max-height:min(78vh,640px); overflow:auto;
+    background:#fff; border:1px solid var(--gc-line); border-radius:20px;
+    box-shadow:0 24px 60px rgba(2,6,23,.28); padding:16px;
+  }
+  .gc2-frota .gc2-modal-header {
+    display:flex; align-items:flex-start; justify-content:space-between; gap:12px;
+    padding-bottom:10px; border-bottom:1px solid #eef2f7; margin-bottom:12px;
+  }
+  .gc2-frota .gc2-modal-header h2 { margin:0; font-size:18px; color:#061d37; }
+  .gc2-frota .gc2-modal-close {
+    width:36px; height:36px; border:0; border-radius:10px; background:#f1f5f9; color:#061d37;
+    font-size:22px; line-height:1; cursor:pointer;
+  }
+  .gc2-frota .approval-list { display:grid; gap:10px; }
+  .gc2-frota .approval-card {
+    border:1px solid var(--gc-line); border-radius:16px; padding:12px 14px; background:#f8fafc;
+  }
+  .gc2-frota .approval-card-head {
+    display:flex; flex-wrap:wrap; justify-content:space-between; gap:8px; margin-bottom:8px;
+  }
+  .gc2-frota .record-detail-grid { display:flex; flex-wrap:wrap; gap:6px; }
+  .gc2-frota .record-detail-grid span {
+    padding:4px 8px; border-radius:999px; background:#fff; border:1px solid #e2e8f0; font-size:12px; color:#334155;
+  }
+  @media (max-width:1100px) {
+    .gc2-frota .frota-balloon-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  }
+  @media (max-width:640px) {
+    .gc2-frota .frota-canvas { padding:12px; border-radius:14px; margin-bottom:12px; }
+    .gc2-frota .frota-heading-inner { padding:12px; }
+    .gc2-frota .frota-heading h1 { font-size:22px; }
+    .gc2-frota .frota-balloon-grid { grid-template-columns:1fr; gap:12px; }
+    .gc2-frota .frota-balloon { min-height:108px; border-radius:20px; padding:14px; }
+    .gc2-frota .frota-metrics { grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+    .gc2-frota .frota-metric { border-radius:16px; padding:12px; }
+    .gc2-frota .frota-metric strong { font-size:22px; }
+    .gc2-frota .gc2-modal { place-items:end stretch; padding:0; }
+    .gc2-frota .gc2-modal-dialog { width:100%; border-radius:18px 18px 0 0; max-height:82vh; }
+  }
+</style>
 
-{% for section in frota_sections %}
-  <section class="panel mt-4">
-    <div class="panel-title">
-      <div>
-        <h2>{{ section.title }}</h2>
-        <p>{{ section.description }}</p>
+<div class="gc2-frota" id="gc2FrotaHub">
+  <section class="frota-canvas">
+    <div class="frota-heading">
+      <div class="frota-heading-inner">
+        <div>
+          <span class="erp-eyebrow">Rede Krill · CD {{ cd_unidade_label }}</span>
+          <h1>Central da Frota</h1>
+          <p>Carregamentos, disponibilidade, check-list e cadastros da Frota em um lugar só.</p>
+        </div>
+        <form class="frota-date-form" method="get">
+          <label for="frota-data">Data</label>
+          <input class="field js-auto-submit-control" id="frota-data" type="date" name="data" value="{{ data|date:'Y-m-d' }}">
+        </form>
       </div>
     </div>
-    <div class="cards frota-hub-grid fusao-card-grid">
-      {% for card in section.cards %}
-        <a class="card frota-hub-card home-action-card" href="{{ card.url }}">
-          <strong>{{ card.title }}</strong>
-          <small>{{ card.description }}</small>
-          {% if card.highlight %}<em class="text-[#073b73] font-extrabold">{{ card.highlight }}</em>{% endif %}
-        </a>
+
+    {% for section in frota_sections %}
+      <section class="frota-section" aria-labelledby="frota-section-{{ forloop.counter }}">
+        <h2 class="frota-section-title" id="frota-section-{{ forloop.counter }}">{{ section.title }}</h2>
+        <p class="frota-section-copy">{{ section.description }}</p>
+        <div class="frota-balloon-grid">
+          {% for card in section.cards %}
+            <a class="frota-balloon" href="{{ card.url }}">
+              <span class="frota-balloon-icon" aria-hidden="true">{{ card.icon }}</span>
+              <strong>{{ card.title }}</strong>
+              <small>{{ card.description }}</small>
+              {% if card.highlight %}<em>{{ card.highlight }}</em>{% endif %}
+            </a>
+          {% endfor %}
+        </div>
+      </section>
+    {% endfor %}
+  </section>
+
+  <section class="frota-canvas">
+    <div class="frota-toolbar">
+      <div>
+        <span class="erp-eyebrow">Indicadores</span>
+        <h2 class="frota-section-title">Indicadores da Frota</h2>
+        <p class="frota-section-copy">{{ frota_metrics|length }} métrica(s) do dia selecionado.</p>
+      </div>
+      <button class="btn secondary" type="button" data-gc2-open-modal="gc2FrotaMetricsModal">Ver resumo</button>
+    </div>
+    <div class="frota-metrics">
+      {% for label, value in frota_metrics %}
+        <button type="button" class="frota-metric" data-gc2-open-modal="gc2FrotaMetricsModal">
+          <span>{{ label }}</span>
+          <strong>{{ value }}</strong>
+        </button>
       {% endfor %}
     </div>
   </section>
-{% endfor %}
 
-<section class="panel mt-4">
-  <div class="panel-title">
-    <div>
-      <h2>Indicadores da Frota</h2>
-      <p>{{ frota_metrics|length }} métrica(s) do dia selecionado.</p>
-    </div>
-  </div>
-  <div class="fusao-card-grid">
-    {% for label, value in frota_metrics %}
-      <article class="card fusao-metric-card">
-        <span>{{ label }}</span>
-        <strong>{{ value }}</strong>
-      </article>
-    {% endfor %}
-  </div>
-</section>
-
-<section class="panel mt-4">
-  <div class="panel-title">
-    <div>
-      <h2>Saldo para carregamento</h2>
-      <p>Consulta de apoio: saldo livre, saldo informado e reservado por CD.</p>
-    </div>
-    <span class="metric-pill">{{ frota_pallets_por_cd|length }} CD(s)</span>
-  </div>
-  <div class="cd-summary-grid fusao-card-grid">
-    {% for item in frota_pallets_por_cd %}
-      <article class="cd-summary-card cd-summary-{{ item.cd }} fusao-metric-card">
-        <span>CD {{ item.cd }}</span>
-        <strong>{{ item.livre }}</strong>
-        <small>livre agora</small>
-        <div class="cd-summary-metrics">
-          <span>Saldo atual <strong>{{ item.saldo }}</strong></span>
-          <span>Reservado <strong>{{ item.vinculado }}</strong></span>
-        </div>
-      </article>
-    {% endfor %}
-  </div>
-</section>
-
-<details class="panel records-panel mt-4" id="disponibilidade-frota" open>
-  <summary>
-    <span>Disponibilidade da Frota</span>
-    <span class="metric-pill">{{ veiculos_disponiveis }} disponível(is)</span>
-  </summary>
-  <div class="records-panel-content">
-    <div class="panel-title">
+  <section class="frota-canvas">
+    <div class="frota-toolbar">
       <div>
-        <h2>Disponibilidade da Frota</h2>
-        <p>Status operacional por veículo. Saída vazia libera nova tarefa; transferência/pallet/pendência mantém ocupado.</p>
+        <span class="erp-eyebrow">Pallets</span>
+        <h2 class="frota-section-title">Saldo para carregamento</h2>
+        <p class="frota-section-copy">Saldo livre, saldo informado e reservado por CD.</p>
       </div>
-      <a class="btn secondary small" href="{% url 'module_list' 'veiculos_frota' %}">Abrir status</a>
+      <span class="metric-pill">{{ frota_pallets_por_cd|length }} CD(s)</span>
+    </div>
+    <div class="cd-summary-grid">
+      {% for item in frota_pallets_por_cd %}
+        <article class="cd-summary-card cd-summary-{{ item.cd }}">
+          <span>CD {{ item.cd }}</span>
+          <strong>{{ item.livre }}</strong>
+          <small>livre agora</small>
+          <div class="cd-summary-metrics">
+            <span>Saldo atual <strong>{{ item.saldo }}</strong></span>
+            <span>Reservado <strong>{{ item.vinculado }}</strong></span>
+          </div>
+        </article>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="frota-canvas" id="disponibilidade-frota">
+    <div class="frota-toolbar">
+      <div>
+        <span class="erp-eyebrow">Operação</span>
+        <h2 class="frota-section-title">Disponibilidade da Frota</h2>
+        <p class="frota-section-copy">{{ veiculos_disponiveis }} disponível(is). Saída vazia libera nova tarefa; transferência/pallet/pendência mantém ocupado.</p>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn" type="button" data-gc2-open-modal="gc2FrotaAvailabilityModal">Abrir disponibilidade</button>
+        <a class="btn secondary" href="{% url 'module_list' 'veiculos_frota' %}">Abrir status</a>
+      </div>
     </div>
     <div class="table-wrap">
       <table>
@@ -101,8 +235,6 @@
             <th>Motorista</th>
             <th>Status</th>
             <th>Local</th>
-            <th>Último checklist</th>
-            <th>Orientação / detalhe</th>
           </tr>
         </thead>
         <tbody>
@@ -113,31 +245,23 @@
               <td>{{ row.vehicle.motorista }}</td>
               <td><span class="status-pill {% if row.available %}ok{% else %}paused{% endif %}">{{ row.status }}</span></td>
               <td>{{ row.local }}</td>
-              <td>{{ row.latest_kind }}{% if row.latest_date %} - {{ row.latest_date|date:"d/m/Y" }}{% endif %}</td>
-              <td>{{ row.detail }}</td>
             </tr>
           {% empty %}
-            <tr>
-              <td colspan="7">Nenhum veículo ativo cadastrado para este CD.</td>
-            </tr>
+            <tr><td colspan="5">Nenhum veículo ativo cadastrado para este CD.</td></tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
-  </div>
-</details>
+  </section>
 
-<details class="panel records-panel mt-4">
-  <summary>
-    <span>Cargas compostas do dia</span>
-    <span class="metric-pill">{{ frota_load_groups|length }}</span>
-  </summary>
-  <div class="records-panel-content">
-    <div class="panel-title">
+  <section class="frota-canvas">
+    <div class="frota-toolbar">
       <div>
-        <h2>Caminhões com mais de uma origem ou loja</h2>
-        <p>Use esta visão quando o mesmo motorista levar lojas próximas no mesmo caminhão ou carregar em mais de um CD.</p>
+        <span class="erp-eyebrow">Cargas</span>
+        <h2 class="frota-section-title">Cargas compostas do dia</h2>
+        <p class="frota-section-copy">Caminhões com mais de uma origem ou loja.</p>
       </div>
+      <span class="metric-pill">{{ frota_load_groups|length }}</span>
     </div>
     <div class="approval-list">
       {% for group in frota_load_groups %}
@@ -145,7 +269,7 @@
           <div class="approval-card-head">
             <div>
               <strong>{{ group.motorista }}</strong>
-              <span>{{ group.placa }} · {{ group.periodo }} · {{ group.total }} pallet(s)</span>
+              <div class="muted">{{ group.placa }} · {{ group.periodo }} · {{ group.total }} pallet(s)</div>
             </div>
             <span class="status-pill">CD 801: {{ group.cds|get_item:"801" }} · CD 806: {{ group.cds|get_item:"806" }}</span>
           </div>
@@ -156,24 +280,128 @@
           </div>
         </article>
       {% empty %}
-        <article class="card fusao-metric-card">
+        <article class="cd-summary-card">
           <span>Nenhuma carga composta</span>
-          <strong>Ainda não há caminhões definidos para a data selecionada.</strong>
+          <strong style="font-size:16px">Ainda não há caminhões definidos para a data selecionada.</strong>
         </article>
       {% endfor %}
     </div>
+  </section>
+
+  <div class="gc2-modal" id="gc2FrotaMetricsModal" hidden data-gc2-modal>
+    <div class="gc2-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="gc2FrotaMetricsTitle">
+      <div class="gc2-modal-header">
+        <div>
+          <span class="erp-eyebrow">CD {{ cd_unidade_label }}</span>
+          <h2 id="gc2FrotaMetricsTitle">Resumo da Frota</h2>
+        </div>
+        <button class="gc2-modal-close" type="button" data-gc2-close-modal aria-label="Fechar">×</button>
+      </div>
+      <div class="frota-metrics">
+        {% for label, value in frota_metrics %}
+          <article class="frota-metric" style="cursor:default">
+            <span>{{ label }}</span>
+            <strong>{{ value }}</strong>
+          </article>
+        {% endfor %}
+      </div>
+    </div>
   </div>
-</details>
+
+  <div class="gc2-modal" id="gc2FrotaAvailabilityModal" hidden data-gc2-modal>
+    <div class="gc2-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="gc2FrotaAvailabilityTitle">
+      <div class="gc2-modal-header">
+        <div>
+          <span class="erp-eyebrow">{{ veiculos_disponiveis }} disponível(is)</span>
+          <h2 id="gc2FrotaAvailabilityTitle">Disponibilidade da Frota</h2>
+        </div>
+        <button class="gc2-modal-close" type="button" data-gc2-close-modal aria-label="Fechar">×</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Veículo</th>
+              <th>Placa</th>
+              <th>Motorista</th>
+              <th>Status</th>
+              <th>Local</th>
+              <th>Último checklist</th>
+              <th>Orientação / detalhe</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in frota_disponibilidade %}
+              <tr>
+                <td>{{ row.vehicle.tipo_caminhao|default:"-" }}</td>
+                <td><strong>{{ row.vehicle.placa }}</strong></td>
+                <td>{{ row.vehicle.motorista }}</td>
+                <td><span class="status-pill {% if row.available %}ok{% else %}paused{% endif %}">{{ row.status }}</span></td>
+                <td>{{ row.local }}</td>
+                <td>{{ row.latest_kind }}{% if row.latest_date %} - {{ row.latest_date|date:"d/m/Y" }}{% endif %}</td>
+                <td>{{ row.detail }}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="7">Nenhum veículo ativo cadastrado para este CD.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
 
 <script>
-  (function () {
-    function openHashPanel() {
-      if (!window.location.hash) return;
-      var target = document.querySelector(window.location.hash);
-      if (target && target.tagName === "DETAILS") target.open = true;
+(function () {
+  var root = document.getElementById("gc2FrotaHub");
+  if (!root) return;
+
+  function openModal(id) {
+    var modal = document.getElementById(id);
+    if (!modal) return;
+    modal.hidden = false;
+    document.body.style.overflow = "hidden";
+  }
+  function closeModal(modal) {
+    if (!modal) return;
+    modal.hidden = true;
+    if (!root.querySelector("[data-gc2-modal]:not([hidden])")) {
+      document.body.style.overflow = "";
     }
-    window.addEventListener("hashchange", openHashPanel);
-    openHashPanel();
-  })();
+  }
+
+  root.querySelectorAll("[data-gc2-open-modal]").forEach(function (button) {
+    button.addEventListener("click", function () {
+      openModal(button.getAttribute("data-gc2-open-modal"));
+    });
+  });
+  root.querySelectorAll("[data-gc2-close-modal]").forEach(function (button) {
+    button.addEventListener("click", function () {
+      closeModal(button.closest("[data-gc2-modal]"));
+    });
+  });
+  root.querySelectorAll("[data-gc2-modal]").forEach(function (modal) {
+    modal.addEventListener("click", function (event) {
+      if (event.target === modal) closeModal(modal);
+    });
+  });
+  document.addEventListener("keydown", function (event) {
+    if (event.key !== "Escape") return;
+    root.querySelectorAll("[data-gc2-modal]:not([hidden])").forEach(closeModal);
+  });
+
+  function openHashPanel() {
+    if (!window.location.hash) return;
+    var target = document.querySelector(window.location.hash);
+    if (!target) return;
+    if (target.id === "disponibilidade-frota") {
+      openModal("gc2FrotaAvailabilityModal");
+      return;
+    }
+    if (target.tagName === "DETAILS") target.open = true;
+  }
+  window.addEventListener("hashchange", openHashPanel);
+  openHashPanel();
+})();
 </script>
 {% endblock %}

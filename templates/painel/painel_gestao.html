@@ -4,6 +4,7 @@
 {% block page_title %}{{ ui_labels.painel_gestao }}{% endblock %}
 {% block page_subtitle %}Visão ao vivo da operação para acompanhamento gerencial.{% endblock %}
 {% block content %}
+<div class="gc2-page">
 <style>
   .manager-hero {
     background: linear-gradient(135deg, #061d37, #073b73);
@@ -45,6 +46,10 @@
   .manager-card {
     padding: 16px;
     min-height: 122px;
+    border-radius: 22px;
+    border-top: 4px solid #061d37;
+    position: relative;
+    overflow: hidden;
   }
   .manager-card span {
     display: block;
@@ -606,4 +611,5 @@
     }, 15000);
   })();
 </script>
+</div>
 {% endblock %}
