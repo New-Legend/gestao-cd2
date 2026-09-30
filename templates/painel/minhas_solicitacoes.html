@@ -1,0 +1,81 @@
+{% extends "painel/base.html" %}
+{% block title %}Notificações{% endblock %}
+{% block page_title %}Notificações{% endblock %}
+{% block content %}
+  <section class="panel fusao-admin-panel">
+    <div class="panel-title">
+      <div>
+        <h2>Notificações</h2>
+        <p>Acompanhe respostas para pedidos feitos no sistema.</p>
+      </div>
+      <a class="btn secondary" href="{% url 'solicitar_acesso' %}">Solicitar acesso</a>
+    </div>
+    <div class="request-list">
+      {% for item in solicitacoes %}
+        {% with row=item.obj %}
+        <article class="request-card {% if item.tipo == 'melhoria' and row.lido_pelo_solicitante_em %}read{% elif item.tipo == 'carregamento' and row.lido_pelo_solicitante_em %}read{% elif item.tipo != 'melhoria' and item.tipo != 'carregamento' and row.lido_pelo_usuario_em %}read{% endif %}">
+          <div>
+            <span class="status-pill {% if row.status == 'cancelada' or row.status == 'descartada' or row.status == 'pausada' %}paused{% elif row.status == 'atendida' or row.status == 'respondida' or row.status == 'concluida' or row.status == 'aprovada' %}ok{% else %}paused{% endif %}">{{ row.get_status_display }}</span>
+            {% if item.tipo == "melhoria" %}
+              <h3>Melhoria: {{ row.titulo }}</h3>
+              <p><strong>Área:</strong> {{ row.get_area_display }} · <strong>Prioridade:</strong> {{ row.get_prioridade_display }}</p>
+              {% if row.decisao %}<p>{{ row.decisao }}</p>{% else %}<p>{{ row.descricao }}</p>{% endif %}
+              <small>Pedido em {{ row.criado_em|date:"d/m/Y H:i" }} · atualizado em {{ row.atualizado_em|date:"d/m/Y H:i" }}</small>
+            {% elif item.tipo == "acesso" %}
+              <h3>Pedido de acesso: {{ row.get_tipo_display }}</h3>
+              <p><strong>Nome:</strong> {{ row.nome }}{% if row.login_desejado %} · <strong>Login:</strong> {{ row.login_desejado }}{% endif %}</p>
+              {% if row.resposta %}<p>{{ row.resposta }}</p>{% else %}<p>{{ row.justificativa|default:"Aguardando retorno da gestão de acesso." }}</p>{% endif %}
+              <small>Pedido em {{ row.criado_em|date:"d/m/Y H:i" }}{% if row.atendido_em %} · atualizado em {{ row.atendido_em|date:"d/m/Y H:i" }}{% endif %}</small>
+            {% elif item.tipo == "carregamento" %}
+              <h3>Carregamento manual: {{ row.loja }}</h3>
+              <p><strong>CD:</strong> {{ row.cd_unidade }} · <strong>Pallets:</strong> {{ row.qtd_paletes }} · <strong>Motorista:</strong> {{ row.motorista|default:"-" }} · <strong>Placa:</strong> {{ row.placa|default:"-" }}</p>
+              {% if row.resposta %}<p>{{ row.resposta }}</p>{% else %}<p>{{ row.motivo|default:"Aguardando retorno da Frota." }}</p>{% endif %}
+              <small>Pedido em {{ row.criado_em|date:"d/m/Y H:i" }}{% if row.aprovado_em %} · atualizado em {{ row.aprovado_em|date:"d/m/Y H:i" }}{% endif %}</small>
+            {% else %}
+              <h3>Pedido de senha/login</h3>
+              <p><strong>Login informado:</strong> {{ row.login_informado }}</p>
+              {% if row.observacao %}<p>{{ row.observacao }}</p>{% endif %}
+              <small>Pedido em {{ row.criado_em|date:"d/m/Y H:i" }}{% if row.atendido_em %} · atualizado em {{ row.atendido_em|date:"d/m/Y H:i" }}{% endif %}</small>
+            {% endif %}
+          </div>
+          {% if item.tipo == "melhoria" and not row.lido_pelo_solicitante_em and row.decisao or item.tipo == "melhoria" and not row.lido_pelo_solicitante_em and row.status != "sugestao" %}
+            <form method="post">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="mark_read">
+              <input type="hidden" name="tipo" value="melhoria">
+              <input type="hidden" name="request_id" value="{{ row.id }}">
+              <button class="btn small secondary" type="submit">Marcar como lida</button>
+            </form>
+          {% elif item.tipo == "acesso" and not row.lido_pelo_usuario_em and row.status != "pendente" %}
+            <form method="post">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="mark_read">
+              <input type="hidden" name="tipo" value="acesso">
+              <input type="hidden" name="request_id" value="{{ row.id }}">
+              <button class="btn small secondary" type="submit">Marcar como lida</button>
+            </form>
+          {% elif item.tipo == "carregamento" and not row.lido_pelo_solicitante_em and row.status != "pendente" %}
+            <form method="post">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="mark_read">
+              <input type="hidden" name="tipo" value="carregamento">
+              <input type="hidden" name="request_id" value="{{ row.id }}">
+              <button class="btn small secondary" type="submit">Marcar como lida</button>
+            </form>
+          {% elif item.tipo != "melhoria" and item.tipo != "carregamento" and not row.lido_pelo_usuario_em and row.status != "pendente" %}
+            <form method="post">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="mark_read">
+              <input type="hidden" name="tipo" value="senha">
+              <input type="hidden" name="request_id" value="{{ row.id }}">
+              <button class="btn small secondary" type="submit">Marcar como lida</button>
+            </form>
+          {% endif %}
+        </article>
+        {% endwith %}
+      {% empty %}
+        <article class="card fusao-metric-card"><span>Nenhum registro</span><strong>Você ainda não tem solicitações.</strong></article>
+      {% endfor %}
+    </div>
+  </section>
+{% endblock %}

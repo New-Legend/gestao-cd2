@@ -1,0 +1,72 @@
+{% extends "painel/base.html" %}
+{% block title %}Importar planilhas{% endblock %}
+{% block page_title %}Importar planilhas{% endblock %}
+{% block content %}
+  <section class="panel fusao-admin-panel">
+    <div class="panel-title">
+      <div>
+        <h2>Importação inteligente</h2>
+        <p>Envie CSV ou Excel. O sistema mostra uma prévia e pede confirmação antes de gravar no banco.</p>
+      </div>
+    </div>
+    <form method="post" enctype="multipart/form-data" class="form-grid">
+      {% csrf_token %}
+      <div>
+        <label>Arquivo CSV/Excel</label>
+        <input class="field" type="file" name="arquivo" accept=".csv,.xlsx,.xls" required>
+      </div>
+      <div style="display:flex;align-items:end"><button class="btn" type="submit">Analisar planilha</button></div>
+    </form>
+    {% if resultado %}
+      <div class="message" style="margin-top:14px">
+        Arquivo {{ resultado.arquivo }} importado em {{ resultado.module.title }} com {{ resultado.created }} registros.
+      </div>
+    {% endif %}
+  </section>
+
+  {% if preview %}
+    <section class="panel fusao-admin-panel">
+      <div class="panel-title">
+        <div>
+          <h2>Prévia da importação</h2>
+          <p>{{ preview.arquivo }} - {{ preview.total }} linhas encontradas.</p>
+        </div>
+      </div>
+      <form method="post" class="form-grid" style="margin-bottom:12px">
+        {% csrf_token %}
+        <input type="hidden" name="confirmar" value="1">
+        <input type="hidden" name="token" value="{{ preview.token }}">
+        <div>
+          <label>Destino da planilha</label>
+          <select class="field" name="module_key">
+            {% for score, module in preview.scores %}
+              <option value="{{ module.key }}" {% if module.key == preview.module.key %}selected{% endif %}>{{ module.title }} - confiança {{ score }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div style="display:flex;align-items:end"><button class="btn" type="submit">Confirmar e importar</button></div>
+      </form>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>{% for col in preview.columns %}<th>{{ col }}</th>{% endfor %}</tr>
+          </thead>
+          <tbody>
+            {% for row in preview.rows %}
+              <tr>{% for value in row %}<td>{{ value }}</td>{% endfor %}</tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  {% endif %}
+
+  <section class="panel fusao-admin-panel">
+    <h2>Destinos reconhecidos</h2>
+    <div class="grid cards fusao-card-grid">
+      {% for module in modules %}
+        <article class="card fusao-metric-card"><span>{{ module.menu }}</span><strong style="font-size:18px">{{ module.title }}</strong></article>
+      {% endfor %}
+    </div>
+  </section>
+{% endblock %}

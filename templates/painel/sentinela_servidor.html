@@ -1,0 +1,139 @@
+﻿{% extends "painel/base.html" %}
+{% block title %}Sentinela do servidor - Gestão CD{% endblock %}
+{% block page_title %}Sentinela do servidor{% endblock %}
+{% block content %}
+  <section class="module-guide">
+    <div>
+      <span class="eyebrow">Render Free</span>
+      <h2>Manter o sistema acordado</h2>
+      <p>Esta tela ajuda enquanto o navegador estiver ativo. Para rotina de trabalho, use também o arquivo INICIAR_SENTINELA_RENDER.bat, que pinga o Render fora do navegador.</p>
+    </div>
+    <div class="module-jump">
+      <button class="btn secondary small" type="button" id="sentinelaWakeLock">Manter tela acordada</button>
+      <button class="btn small" type="button" id="sentinelaPingNow">Pingar agora</button>
+    </div>
+  </section>
+
+  <section class="mini-dashboard">
+    <div class="grid cards fusao-card-grid">
+      <article class="card fusao-metric-card">
+        <span>Status</span>
+        <strong id="sentinelaStatus">Iniciando</strong>
+      </article>
+      <article class="card fusao-metric-card">
+        <span>Último ping</span>
+        <strong id="sentinelaLastPing">-</strong>
+      </article>
+      <article class="card fusao-metric-card">
+        <span>Próximo ping</span>
+        <strong id="sentinelaNextPing">-</strong>
+      </article>
+      <article class="card fusao-metric-card">
+        <span>Falhas seguidas</span>
+        <strong id="sentinelaFailures">0</strong>
+      </article>
+    </div>
+  </section>
+
+  <section class="panel fusao-admin-panel">
+    <div class="panel-title">
+      <div>
+        <h2>Como usar</h2>
+        <p>Para funcionar melhor, deixe o notebook conectado na tomada, sem suspensão automática, e mantenha esta aba aberta.</p>
+      </div>
+      <div class="metric-pill">Intervalo: {{ ping_interval_seconds }}s</div>
+    </div>
+    <div class="split-grid">
+      <article class="compact-panel">
+        <h3>O que ela faz</h3>
+        <p class="muted">Envia uma requisição pequena para o Gestão CD periodicamente. Isso ajuda o Render a entender que ainda existe uso ativo.</p>
+      </article>
+      <article class="compact-panel">
+        <h3>Limite importante</h3>
+        <p class="muted">No plano gratuito, o Render ainda pode reiniciar ou pausar por regras próprias. A Sentinela ajuda bastante, mas não é garantia de 100%. O notebook pode ficar bloqueado, mas não pode suspender.</p>
+      </article>
+    </div>
+  </section>
+
+  <script>
+    (function () {
+      const intervalSeconds = Number("{{ ping_interval_seconds|default:180 }}") || 180;
+      const keepaliveUrl = "{% url 'keepalive' %}";
+      const statusEl = document.getElementById("sentinelaStatus");
+      const lastPingEl = document.getElementById("sentinelaLastPing");
+      const nextPingEl = document.getElementById("sentinelaNextPing");
+      const failuresEl = document.getElementById("sentinelaFailures");
+      const pingNow = document.getElementById("sentinelaPingNow");
+      const wakeLockButton = document.getElementById("sentinelaWakeLock");
+      let failures = 0;
+      let nextAt = null;
+      let wakeLock = null;
+
+      function formatTime(date) {
+        return date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+      }
+
+      function updateNext() {
+        if (!nextAt) return;
+        const seconds = Math.max(0, Math.ceil((nextAt.getTime() - Date.now()) / 1000));
+        nextPingEl.textContent = seconds + "s";
+      }
+
+      async function pingServer() {
+        statusEl.textContent = "Pingando...";
+        const controller = window.AbortController ? new AbortController() : null;
+        const timeoutId = controller ? window.setTimeout(function () { controller.abort(); }, 7000) : null;
+        try {
+          const response = await fetch(keepaliveUrl + "?sentinela=1&t=" + Date.now(), {
+            cache: "no-store",
+            headers: { "X-Requested-With": "XMLHttpRequest" },
+            signal: controller ? controller.signal : undefined
+          });
+          if (!response.ok) throw new Error("HTTP " + response.status);
+          const data = await response.json();
+          failures = 0;
+          statusEl.textContent = "Ativo";
+          lastPingEl.textContent = formatTime(new Date(data.server_time || Date.now()));
+        } catch (error) {
+          failures += 1;
+          statusEl.textContent = "Tentando reconectar";
+        } finally {
+          if (timeoutId) window.clearTimeout(timeoutId);
+        }
+        failuresEl.textContent = String(failures);
+        nextAt = new Date(Date.now() + intervalSeconds * 1000);
+        updateNext();
+      }
+
+      async function requestWakeLock() {
+        if (!("wakeLock" in navigator)) {
+          wakeLockButton.textContent = "Tela acordada indisponível";
+          return;
+        }
+        try {
+          wakeLock = await navigator.wakeLock.request("screen");
+          wakeLockButton.textContent = "Tela acordada ativa";
+          wakeLock.addEventListener("release", function () {
+            wakeLockButton.textContent = "Manter tela acordada";
+          });
+        } catch (error) {
+          wakeLockButton.textContent = "Clique para tentar novamente";
+        }
+      }
+
+      document.addEventListener("visibilitychange", function () {
+        if (document.visibilityState === "visible") {
+          pingServer();
+          if (!wakeLock) requestWakeLock();
+        }
+      });
+      if (pingNow) pingNow.addEventListener("click", pingServer);
+      if (wakeLockButton) wakeLockButton.addEventListener("click", requestWakeLock);
+
+      pingServer();
+      requestWakeLock();
+      window.setInterval(pingServer, intervalSeconds * 1000);
+      window.setInterval(updateNext, 1000);
+    })();
+  </script>
+{% endblock %}

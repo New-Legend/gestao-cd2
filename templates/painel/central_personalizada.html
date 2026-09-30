@@ -1,0 +1,25 @@
+{% extends "painel/base.html" %}
+
+{% block title %}{{ hub.title }} - Gestão CD{% endblock %}
+{% block page_title %}{{ hub.title }}{% endblock %}
+{% block page_subtitle %}{{ hub.description }}{% endblock %}
+
+{% block content %}
+<section class="panel fusao-admin-panel module-hub">
+  <div class="panel-title">
+    <div>
+      <h2>{{ hub.title }}</h2>
+      <p>{{ hub.description }}</p>
+    </div>
+  </div>
+  <div class="cards fusao-card-grid frota-hub-grid">
+    {% for card in hub.cards %}
+      <a class="card frota-hub-card home-action-card" href="{{ card.url }}">
+        <span class="nav-icon">{{ card.icon }}</span>
+        <strong>{{ card.title }}</strong>
+        <small>{{ card.description }}</small>
+      </a>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

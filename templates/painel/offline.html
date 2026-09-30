@@ -1,0 +1,86 @@
+﻿{% load static %}
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  {% include "painel/_pwa_head.html" %}
+  <title>Gestão CD — Sem conexão</title>
+  <style>
+    :root {
+      --blue: #073b73;
+      --blue2: #061d37;
+      --yellow: #ffd21f;
+      --muted: #627084;
+      --line: #d7e0eb;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      color: #172033;
+      font-family: "Segoe UI", Arial, sans-serif;
+      background:
+        radial-gradient(900px 420px at 90% 0%, rgba(7,59,115,.12), transparent 55%),
+        #f3f6fa;
+    }
+    main {
+      width: min(460px, 100%);
+      padding: 28px;
+      border: 1px solid var(--line);
+      border-top: 6px solid var(--yellow);
+      border-radius: 14px;
+      background: #fff;
+      box-shadow: 0 14px 34px rgba(6,29,55,.08);
+      text-align: center;
+    }
+    .mark {
+      width: 88px;
+      height: 88px;
+      margin: 0 auto;
+      border-radius: 18px;
+      display: grid;
+      place-items: center;
+      background: var(--blue2);
+      color: var(--yellow);
+      border: 2px solid var(--yellow);
+      font-weight: 900;
+      font-size: 28px;
+    }
+    img {
+      width: 104px;
+      height: 104px;
+      object-fit: contain;
+      display: none;
+    }
+    h1 { color: var(--blue2); margin: 16px 0 8px; }
+    p { color: var(--muted); line-height: 1.5; margin: 0 0 8px; }
+    button {
+      width: 100%;
+      min-height: 48px;
+      margin-top: 12px;
+      border: 0;
+      border-radius: 8px;
+      background: var(--blue);
+      color: #fff;
+      font: inherit;
+      font-weight: 900;
+      cursor: pointer;
+    }
+    button:hover { background: var(--blue2); }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="mark" aria-hidden="true">CD</div>
+    <img src="{% static 'painel/img/modelo-teste-192.png' %}" alt="Gestão CD">
+    <h1>Sem conexão</h1>
+    <p>O Gestão CD está aberto, mas precisa de internet para consultar ou salvar informações da operação.</p>
+    <button type="button" onclick="location.reload()">Tentar novamente</button>
+  </main>
+  {% include "painel/_pwa_register.html" %}
+</body>
+</html>

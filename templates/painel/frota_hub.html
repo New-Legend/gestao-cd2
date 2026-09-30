@@ -1,0 +1,179 @@
+{% extends "painel/base.html" %}
+{% load painel_extras %}
+
+{% block title %}Central da Frota - Gestão CD{% endblock %}
+{% block page_title %}Central da Frota{% endblock %}
+
+{% block content %}
+<section class="panel">
+  <div class="panel-title">
+    <div>
+      <h2>Escolha a rotina</h2>
+      <p>Carregamentos, disponibilidade, check-list e cadastros da Frota em um lugar só.</p>
+    </div>
+    <form class="toolbar compact-toolbar" method="get">
+      <label>Data
+        <input class="field js-auto-submit-control" type="date" name="data" value="{{ data|date:'Y-m-d' }}">
+      </label>
+    </form>
+  </div>
+</section>
+
+{% for section in frota_sections %}
+  <section class="panel mt-4">
+    <div class="panel-title">
+      <div>
+        <h2>{{ section.title }}</h2>
+        <p>{{ section.description }}</p>
+      </div>
+    </div>
+    <div class="cards frota-hub-grid fusao-card-grid">
+      {% for card in section.cards %}
+        <a class="card frota-hub-card home-action-card" href="{{ card.url }}">
+          <strong>{{ card.title }}</strong>
+          <small>{{ card.description }}</small>
+          {% if card.highlight %}<em class="text-[#073b73] font-extrabold">{{ card.highlight }}</em>{% endif %}
+        </a>
+      {% endfor %}
+    </div>
+  </section>
+{% endfor %}
+
+<section class="panel mt-4">
+  <div class="panel-title">
+    <div>
+      <h2>Indicadores da Frota</h2>
+      <p>{{ frota_metrics|length }} métrica(s) do dia selecionado.</p>
+    </div>
+  </div>
+  <div class="fusao-card-grid">
+    {% for label, value in frota_metrics %}
+      <article class="card fusao-metric-card">
+        <span>{{ label }}</span>
+        <strong>{{ value }}</strong>
+      </article>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="panel mt-4">
+  <div class="panel-title">
+    <div>
+      <h2>Saldo para carregamento</h2>
+      <p>Consulta de apoio: saldo livre, saldo informado e reservado por CD.</p>
+    </div>
+    <span class="metric-pill">{{ frota_pallets_por_cd|length }} CD(s)</span>
+  </div>
+  <div class="cd-summary-grid fusao-card-grid">
+    {% for item in frota_pallets_por_cd %}
+      <article class="cd-summary-card cd-summary-{{ item.cd }} fusao-metric-card">
+        <span>CD {{ item.cd }}</span>
+        <strong>{{ item.livre }}</strong>
+        <small>livre agora</small>
+        <div class="cd-summary-metrics">
+          <span>Saldo atual <strong>{{ item.saldo }}</strong></span>
+          <span>Reservado <strong>{{ item.vinculado }}</strong></span>
+        </div>
+      </article>
+    {% endfor %}
+  </div>
+</section>
+
+<details class="panel records-panel mt-4" id="disponibilidade-frota" open>
+  <summary>
+    <span>Disponibilidade da Frota</span>
+    <span class="metric-pill">{{ veiculos_disponiveis }} disponível(is)</span>
+  </summary>
+  <div class="records-panel-content">
+    <div class="panel-title">
+      <div>
+        <h2>Disponibilidade da Frota</h2>
+        <p>Status operacional por veículo. Saída vazia libera nova tarefa; transferência/pallet/pendência mantém ocupado.</p>
+      </div>
+      <a class="btn secondary small" href="{% url 'module_list' 'veiculos_frota' %}">Abrir status</a>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Veículo</th>
+            <th>Placa</th>
+            <th>Motorista</th>
+            <th>Status</th>
+            <th>Local</th>
+            <th>Último checklist</th>
+            <th>Orientação / detalhe</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in frota_disponibilidade %}
+            <tr>
+              <td>{{ row.vehicle.tipo_caminhao|default:"-" }}</td>
+              <td><strong>{{ row.vehicle.placa }}</strong></td>
+              <td>{{ row.vehicle.motorista }}</td>
+              <td><span class="status-pill {% if row.available %}ok{% else %}paused{% endif %}">{{ row.status }}</span></td>
+              <td>{{ row.local }}</td>
+              <td>{{ row.latest_kind }}{% if row.latest_date %} - {{ row.latest_date|date:"d/m/Y" }}{% endif %}</td>
+              <td>{{ row.detail }}</td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="7">Nenhum veículo ativo cadastrado para este CD.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</details>
+
+<details class="panel records-panel mt-4">
+  <summary>
+    <span>Cargas compostas do dia</span>
+    <span class="metric-pill">{{ frota_load_groups|length }}</span>
+  </summary>
+  <div class="records-panel-content">
+    <div class="panel-title">
+      <div>
+        <h2>Caminhões com mais de uma origem ou loja</h2>
+        <p>Use esta visão quando o mesmo motorista levar lojas próximas no mesmo caminhão ou carregar em mais de um CD.</p>
+      </div>
+    </div>
+    <div class="approval-list">
+      {% for group in frota_load_groups %}
+        <article class="approval-card">
+          <div class="approval-card-head">
+            <div>
+              <strong>{{ group.motorista }}</strong>
+              <span>{{ group.placa }} · {{ group.periodo }} · {{ group.total }} pallet(s)</span>
+            </div>
+            <span class="status-pill">CD 801: {{ group.cds|get_item:"801" }} · CD 806: {{ group.cds|get_item:"806" }}</span>
+          </div>
+          <div class="record-detail-grid">
+            {% for loja in group.lojas %}
+              <span>{{ loja }}</span>
+            {% endfor %}
+          </div>
+        </article>
+      {% empty %}
+        <article class="card fusao-metric-card">
+          <span>Nenhuma carga composta</span>
+          <strong>Ainda não há caminhões definidos para a data selecionada.</strong>
+        </article>
+      {% endfor %}
+    </div>
+  </div>
+</details>
+
+<script>
+  (function () {
+    function openHashPanel() {
+      if (!window.location.hash) return;
+      var target = document.querySelector(window.location.hash);
+      if (target && target.tagName === "DETAILS") target.open = true;
+    }
+    window.addEventListener("hashchange", openHashPanel);
+    openHashPanel();
+  })();
+</script>
+{% endblock %}

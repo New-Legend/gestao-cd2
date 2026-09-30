@@ -1,0 +1,127 @@
+{% extends "painel/base.html" %}
+{% block title %}{{ ui_labels.treinamento_sistema }} - Gestão CD{% endblock %}
+{% block page_title %}{{ ui_labels.treinamento_sistema }}{% endblock %}
+{% block content %}
+  <section class="hero fusao-admin-panel" style="padding:16px">
+    <h2 style="margin:0;font-size:clamp(24px,4vw,42px)">Treinamento rápido</h2>
+    <p>Roteiro prático para testar e apresentar o Gestão CD em celular, tablet ou PC.</p>
+  </section>
+
+  <section class="panel fusao-admin-panel">
+    <div class="panel-title">
+      <div>
+        <h2>Como conduzir a demonstração</h2>
+        <p>Sequência curta para mostrar valor sem abrir telas demais.</p>
+      </div>
+      <button class="btn secondary" type="button" onclick="window.print()">Imprimir / salvar PDF</button>
+    </div>
+    <div class="dashboard-focus-grid">
+      <article class="compact-panel">
+        <h3>1. Abrir como master</h3>
+        <p class="muted">Mostre que o sistema tem controle de CD, menu por permissão, sino de notificações e gestão de acesso.</p>
+      </article>
+      <article class="compact-panel">
+        <h3>2. Mostrar a Frota</h3>
+        <p class="muted">Abra a Central da Frota, o Check-list do Motorista, Carregar Veículo, Aprovações e Painel da Frota.</p>
+      </article>
+      <article class="compact-panel">
+        <h3>3. Mostrar Expedição</h3>
+        <p class="muted">Explique saldo por CD, lançamento por loja e como a frota vincula motorista/placa sem misturar 801 e 806.</p>
+      </article>
+      <article class="compact-panel">
+        <h3>4. Mostrar Colaboradores</h3>
+        <p class="muted">Explique férias, ausências, retorno, gargalo por setor e alertas configuráveis.</p>
+      </article>
+    </div>
+  </section>
+
+  <section class="panel fusao-admin-panel">
+    <div class="panel-title">
+      <div>
+        <h2>Roteiro de teste operacional</h2>
+        <p>Use como checklist antes de liberar o piloto.</p>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Etapa</th><th>Teste</th><th>Resultado esperado</th></tr></thead>
+        <tbody>
+          <tr><td>Login master</td><td>Entrar com o usuário master e abrir Ferramentas.</td><td>Ver gestão de acesso, recursos, Push, apresentação e treinamento.</td></tr>
+          <tr><td>Permissões</td><td>Abrir Gestão de acesso e conferir perfis modelo.</td><td>Cada login enxerga apenas o que precisa.</td></tr>
+          <tr><td>Saldo de pallets</td><td>Lançar pallets para uma loja no CD correto.</td><td>Relatório e carregamento passam a exibir o saldo atualizado.</td></tr>
+          <tr><td>Carregar veículo</td><td>Vincular loja, quantidade, motorista e placa.</td><td>Saldo fica reservado/vinculado para o carregamento.</td></tr>
+          <tr><td>Notificação</td><td>Enviar teste Push e simular vínculo de motorista.</td><td>Usuário certo recebe aviso no celular ou no sino interno.</td></tr>
+          <tr><td>Checklist motorista</td><td>Entrar como motorista e preencher saída.</td><td>Supervisor recebe aviso e o Painel da Frota atualiza.</td></tr>
+          <tr><td>Retorno</td><td>Registrar retorno do motorista.</td><td>Retorno pendente deixa de aparecer como pendência.</td></tr>
+          <tr><td>Colaboradores</td><td>Cadastrar férias ou ausência de teste.</td><td>Mapa/gargalo considera a ausência no setor correto.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel fusao-admin-panel">
+    <div class="panel-title">
+      <div>
+        <h2>Perfis que vale demonstrar</h2>
+        <p>Mostre que o sistema muda conforme o usuário, sem poluir a tela.</p>
+      </div>
+    </div>
+    <div class="module-hub-grid">
+      <article class="module-hub-card">
+        <div class="module-hub-head"><strong>Master</strong><span>controle</span></div>
+        <div class="module-hub-links"><p class="muted">Gerencia usuários, permissões, recursos, nomes das telas, Push, auditoria e configurações.</p></div>
+      </article>
+      <article class="module-hub-card">
+        <div class="module-hub-head"><strong>Supervisor Frota</strong><span>operação</span></div>
+        <div class="module-hub-links"><p class="muted">Acompanha check-lists, vincula veículo, aprova exceções, recebe alertas e acompanha retornos.</p></div>
+      </article>
+      <article class="module-hub-card">
+        <div class="module-hub-head"><strong>Expedição 801/806</strong><span>consulta</span></div>
+        <div class="module-hub-links"><p class="muted">Consulta o que foi vinculado para seu CD e evita carregar em motorista diferente do combinado.</p></div>
+      </article>
+      <article class="module-hub-card">
+        <div class="module-hub-head"><strong>Motorista</strong><span>simples</span></div>
+        <div class="module-hub-links"><p class="muted">Faz check-list de saída/retorno e pode receber aviso da loja vinculada ao caminhão.</p></div>
+      </article>
+      <article class="module-hub-card">
+        <div class="module-hub-head"><strong>Colaboradores</strong><span>gestão</span></div>
+        <div class="module-hub-links"><p class="muted">Permite controlar férias, ausências, retorno, gargalo por setor e futuramente EPI.</p></div>
+      </article>
+      <article class="module-hub-card">
+        <div class="module-hub-head"><strong>Gerência/Consulta</strong><span>visão</span></div>
+        <div class="module-hub-links"><p class="muted">Pode receber visão limpa, sem botões de edição, só com indicadores e acompanhamento.</p></div>
+      </article>
+    </div>
+  </section>
+
+  <section class="panel fusao-admin-panel">
+    <div class="panel-title">
+      <div>
+        <h2>Como explicar em poucos minutos</h2>
+        <p>Texto curto para usar em conversa.</p>
+      </div>
+    </div>
+    <div class="compact-panel">
+      <p>
+        O Gestão CD nasceu para apoiar rotinas administrativas e operacionais dos CDs, principalmente onde hoje há dependência de mensagem, planilha e controle manual.
+        O sistema separa acesso por usuário, CD, tela e permissão, funciona em celular ou PC, registra histórico das ações e envia alertas internos ou Push quando necessário.
+        O objetivo do piloto é validar primeiro frota, expedição e colaboradores, depois evoluir para outras áreas conforme a operação aprovar.
+      </p>
+    </div>
+  </section>
+
+  <section class="panel fusao-admin-panel">
+    <div class="panel-title">
+      <div>
+        <h2>Pontos de atenção no piloto</h2>
+        <p>Itens para alinhar antes de colocar mais pessoas usando.</p>
+      </div>
+    </div>
+    <div class="grid cards fusao-card-grid">
+      <article class="card fusao-metric-card"><span>Banco e servidor</span><strong>Definir ambiente oficial</strong><p class="muted">Se aprovado, o ideal é TI avaliar hospedagem, backup e banco em ambiente da empresa.</p></article>
+      <article class="card fusao-metric-card"><span>Permissões</span><strong>Revisar perfis</strong><p class="muted">Antes do teste, conferir cada login para não liberar tela indevida.</p></article>
+      <article class="card fusao-metric-card"><span>Treinamento</span><strong>Começar pequeno</strong><p class="muted">Liberar primeiro para poucos usuários e ajustar com feedback real.</p></article>
+      <article class="card fusao-metric-card"><span>Contingência</span><strong>Não depender só do Push</strong><p class="muted">Sempre manter a consulta pelo sino e pelos painéis operacionais.</p></article>
+    </div>
+  </section>
+{% endblock %}

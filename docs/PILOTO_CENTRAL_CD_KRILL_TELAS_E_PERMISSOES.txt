@@ -1,0 +1,831 @@
+CENTRAL CD KRILL - GUIA DO PILOTO
+Telas, permissões e uso operacional
+Atualizado em: 13/07/2026
+
+Objetivo do piloto
+==================
+O piloto da Central CD Krill foi pensado para testar o uso real do sistema nos CDs, principalmente nas rotinas de Frota, Expedição, Colaboradores/Férias, Equipamentos e acompanhamento gerencial.
+
+A ideia principal é reduzir comunicação solta por WhatsApp, evitar perda de informação, registrar decisões, separar acessos por perfil e permitir acompanhamento em celular, tablet ou computador.
+
+O sistema trabalha por permissões individuais. Isso significa que uma pessoa só vê a aba, painel ou ação que estiver liberada no login dela.
+
+
+Conceitos usados no sistema
+===========================
+Aba
+---
+É o grupo grande do menu lateral.
+Exemplos: Principal, Frota, Expedição, Colaboradores, Recursos e perdas, Ferramentas.
+
+Painel
+------
+É o item dentro de uma aba.
+Exemplos: Check-list do Motorista, Saldo de Pallets, Carregar Veículo, Painel da Frota, Férias dos Colaboradores.
+
+Tela
+----
+É a página aberta quando a pessoa clica em um painel.
+Exemplo: ao clicar em Saldo de Pallets, abre a tela onde a Expedição lança quantos pallets existem por loja e CD.
+
+Permissão
+---------
+É o controle que define se o usuário pode abrir uma tela, consultar registros, criar registros, editar, excluir, receber notificações ou executar ações específicas.
+
+
+Perfis principais do piloto
+===========================
+Master
+------
+Uso: João Pedro.
+Função: configurar o sistema, permissões, nomes de abas/painéis, usuários, notificações, recursos opcionais e auditoria.
+Observação: o master sempre deve conseguir acessar tudo que estiver ativo no sistema.
+
+Supervisor de Frota
+-------------------
+Uso esperado: Maurício e apoio da frota.
+Função: acompanhar check-lists, vincular cargas a motoristas/placas, aprovar lançamentos manuais, acompanhar retornos, receber alertas e gerenciar motoristas/placas.
+
+Expedição 801 e Expedição 806
+-----------------------------
+Uso esperado: equipes de expedição de cada CD.
+Função: lançar saldo de pallets por loja no seu próprio CD, confirmar carregamento quando autorizado/vinculado e receber alerta quando houver carga vinculada para o seu CD.
+
+Colaboradores / Andressa
+------------------------
+Uso esperado: Andressa e responsáveis por pessoas, férias e ausências.
+Função: cadastrar férias, ausências, quadro do dia e acompanhar gargalos de pessoas por setor.
+
+Supervisor / Líder de setor
+---------------------------
+Uso esperado: supervisores e líderes liberados por setor.
+Função: acompanhar apenas informações do próprio setor, como férias, ausências, gargalos e capacidade operacional, quando as permissões forem liberadas.
+
+Motorista
+---------
+Uso esperado: motoristas da frota.
+Função: preencher check-list de saída e retorno; receber notificações futuras de carga vinculada quando o celular estiver registrado no login dele.
+
+Gerência / Naka
+---------------
+Uso esperado: acompanhamento geral.
+Função: visualizar o Painel Gerencial e indicadores consolidados sem precisar mexer nas telas operacionais.
+
+
+TELAS DO PILOTO
+===============
+
+1. Início
+---------
+Aba: Principal
+Permissão principal: painel
+
+Para que serve:
+Tela inicial do sistema. Mostra entrada rápida para os módulos liberados conforme as permissões do usuário.
+
+Uso no piloto:
+Ajuda cada usuário a entrar somente nas rotinas que ele pode usar. Motorista vê quase nada; supervisor vê mais; master vê tudo.
+
+Permissões relacionadas:
+- painel: permite abrir a tela inicial.
+- trocar_cd: permite trocar o CD quando o usuário tiver permissão para isso.
+- preferencias: permite ajustar a própria tela quando liberado.
+
+
+2. Painel Gerencial
+-------------------
+Aba: Principal ou Gestão, conforme configuração de nomes
+Permissão principal: painel_gestao
+
+Para que serve:
+Tela resumida para gerência acompanhar a operação em cards. A intenção é mostrar pontos importantes sem abrir cada tela operacional.
+
+Uso no piloto:
+Pode ser mostrado para Naka/gerência como visão executiva do sistema.
+
+Permissões relacionadas:
+- painel_gestao: abre o painel gerencial.
+- visualizar_cds_unificados: permite visão dos CDs 801 e 806 juntos, quando fizer sentido.
+- ver_graficos_resumos: permite ver cards, gráficos e resumos.
+
+
+3. Painel Master
+----------------
+Aba: Ferramentas
+Permissão principal: painel_master
+
+Para que serve:
+Área administrativa do master para acompanhar informações sensíveis e apoio à gestão do sistema.
+
+Uso no piloto:
+Uso restrito ao João Pedro ou alguém autorizado pelo master.
+
+Permissões relacionadas:
+- painel_master: abre o painel master.
+- auditoria_acessos: permite consultar auditoria de logins e ações.
+- gestao_acesso: permite administrar usuários.
+- gestao_acesso_total: permite liberar gestão de acesso ampla para outro usuário.
+
+
+4. Gestão de Acesso
+-------------------
+Aba: Ferramentas
+Permissão principal: gestao_acesso
+
+Para que serve:
+Cadastrar usuários, alterar nome, redefinir senha, pausar login, reativar login, copiar permissões de outro usuário e controlar permissões individualmente.
+
+Uso no piloto:
+Criar logins de expedição, motoristas, supervisores, Andressa, Leilane, Stéfanie, Naka e demais testadores.
+
+Permissões relacionadas:
+- gestao_acesso: permite abrir a gestão de acesso.
+- gestao_acesso_total: permite liberar gestão de acesso com poder semelhante ao master.
+- auditoria_acessos: permite ver histórico de criação, alteração, pausa, senha e acessos.
+
+Cuidados:
+Essa tela é sensível. Quem tiver acesso pode alterar permissões de outras pessoas.
+
+
+5. Personalizar Nomes
+---------------------
+Aba: Ferramentas
+Permissão principal: personalizar_interface
+
+Para que serve:
+Permite o master alterar nomes de abas, painéis e rótulos do sistema sem mexer no código.
+
+Uso no piloto:
+Adaptar nomes para a linguagem da operação. Exemplo: trocar “Assistente” por “Central”, renomear painéis que ficarem confusos.
+
+Permissões relacionadas:
+- personalizar_interface: permite editar nomes visíveis.
+
+
+6. Gerenciar Notificações Push
+------------------------------
+Aba: Ferramentas
+Permissão principal: gerenciar_push
+
+Para que serve:
+Testar Push, ver aparelhos registrados, disparar teste para usuários e acompanhar se o Push está ativo.
+
+Uso no piloto:
+Validar celulares da expedição, supervisores e futuramente motoristas.
+
+Permissões relacionadas:
+- gerenciar_push: abre o gerenciamento de Push.
+- notificar_carga_vinculada: recebe alerta de carga vinculada.
+- notificar_alteracao_carga: recebe alerta de alteração de carga.
+- notificar_saldo_paletes: recebe alerta de saldo de pallets atualizado.
+- notificar_motorista_vinculado: permite motorista receber alerta quando for vinculado a carga.
+- notificar_checklist_motorista: recebe alerta quando motorista preencher check-list.
+- receber_alertas_expedicao: recebe alertas operacionais da expedição.
+
+Observação:
+O Push depende do aparelho estar registrado. Depois de registrar, o usuário não precisa ficar logado o tempo todo para receber Push naquele aparelho, desde que a assinatura do navegador continue válida.
+
+
+FROTA
+=====
+
+7. Central / Hub da Frota
+-------------------------
+Aba: Frota
+Permissão principal: painel_frota ou permissões internas de frota
+
+Para que serve:
+Tela de entrada da frota em cards, reunindo atalhos para check-list, painel, motoristas, escala, carregamento, materiais e aprovações.
+
+Uso no piloto:
+Facilitar para Maurício e equipe não se perderem no menu.
+
+Permissões relacionadas:
+- painel_frota: permite acompanhar a frota.
+- checklist_frota: abre check-list.
+- veiculos_frota: abre motoristas e placas.
+- escala_veiculos_frota: abre escala de veículos.
+- carregamento_veiculos: abre carregar veículo.
+- aprovacoes_carregamento: abre aprovações de carregamento.
+- materiais_frota: abre materiais da frota.
+- checklist_frota_itens: abre edição dos itens do check-list.
+
+
+8. Check-list do Motorista
+--------------------------
+Aba: Frota ou Motorista
+Permissão principal: checklist_frota
+
+Para que serve:
+Motorista registra saída e retorno do CD, informando veículo, placa, loja, quilometragem e itens de conferência.
+
+Uso no piloto:
+Primeiro uso real dos motoristas. O motorista deve preencher saída antes da viagem e retorno quando voltar.
+
+Permissões relacionadas:
+- checklist_frota: permite abrir/preencher check-list.
+- criar_registros: permite salvar novo check-list.
+- painel_frota: permite supervisor acompanhar check-lists.
+- encerrar_retorno_frota: permite supervisor resolver retorno pendente quando necessário.
+- editar_checklist_frota: permite alterar estrutura/itens do check-list.
+- notificar_checklist_motorista: recebe alerta quando motorista confirma check-list.
+
+Observação:
+O retorno pendente deve ser acompanhado para evitar que motorista faça só a saída e esqueça a volta.
+
+
+9. Painel da Frota
+------------------
+Aba: Frota
+Permissão principal: painel_frota
+
+Para que serve:
+Acompanhar check-lists lançados, retornos pendentes, ocorrências e visão agrupada por motorista/placa.
+
+Uso no piloto:
+Supervisor de Frota acompanha quem saiu, quem voltou, quem está pendente e quais veículos tiveram ocorrência.
+
+Permissões relacionadas:
+- painel_frota: abre o painel.
+- consultar_registros: consulta registros.
+- ver_graficos_resumos: vê resumos.
+- exportar_frota: exporta dados da frota.
+- encerrar_retorno_frota: encerra/dispensa retorno quando necessário.
+
+
+10. Motoristas e Placas
+-----------------------
+Aba: Frota
+Permissão principal: veiculos_frota
+
+Para que serve:
+Cadastrar motoristas, placas, tipo de caminhão, plataforma e login do motorista.
+
+Uso no piloto:
+Base usada para preencher carregamentos, notificações e escala de veículos sem digitar tudo manualmente.
+
+Permissões relacionadas:
+- veiculos_frota: abre a tela.
+- criar_registros: cadastra motorista/placa.
+- editar_registros: altera motorista/placa.
+- excluir_registros: exclui registros, quando liberado.
+- consultar_registros: consulta registros salvos.
+
+
+11. Escala de Veículos
+----------------------
+Aba: Frota
+Permissão principal: escala_veiculos_frota
+
+Para que serve:
+Indicar quando uma placa/caminhão está temporariamente com outro motorista por férias, manutenção, apoio ou troca operacional.
+
+Uso no piloto:
+Exemplo: John Lennon está de férias e Marlusa está cobrindo a placa dele. O sistema usa essa escala para direcionar melhor notificações e evitar enviar para motorista ausente.
+
+Permissões relacionadas:
+- escala_veiculos_frota: abre a tela.
+- criar_registros: cria escala.
+- editar_registros: altera escala.
+- consultar_registros: consulta escalas.
+- excluir_registros: exclui escala, se liberado.
+
+Regra importante:
+O login responsável deve ser de motorista. Não deve aparecer login de supervisor, assistente ou analista nesse seletor.
+
+
+12. Carregar Veículo
+--------------------
+Aba: Frota
+Permissão principal: carregamento_veiculos
+
+Para que serve:
+Supervisor vincula loja, quantidade de pallets, CD de origem, motorista e placa.
+
+Uso no piloto:
+Maurício ou responsável define qual motorista/placa vai carregar determinada loja e de qual CD sairá a carga.
+
+Permissões relacionadas:
+- carregamento_veiculos: abre a tela.
+- vincular_cargas_expedicao: permite vincular carga ao motorista/placa.
+- visualizar_cds_unificados: permite ver saldos dos dois CDs.
+- notificar_carga_vinculada: envia/recebe notificação de carga vinculada.
+- notificar_alteracao_carga: envia/recebe notificação quando houver alteração.
+
+Observação:
+Quando uma carga é vinculada, o sistema pode notificar expedição, supervisores e motorista, conforme permissões e aparelho registrado.
+
+
+13. Aprovações de Carregamento
+------------------------------
+Aba: Frota
+Permissão principal: aprovacoes_carregamento
+
+Para que serve:
+Fila para aprovar ou recusar pedidos de lançamento manual feitos pela Expedição.
+
+Uso no piloto:
+Se a Expedição precisar lançar uma carga fora do fluxo normal, solicita aprovação. A Frota aprova ou recusa.
+
+Permissões relacionadas:
+- aprovacoes_carregamento: abre a fila de aprovações.
+- aprovar_lancamento_manual_expedicao: permite aprovar ou recusar.
+- solicitar_lancamento_manual_expedicao: permite a Expedição solicitar.
+- lancar_manual_sem_aprovacao: permite lançar direto sem aprovação, se liberado para perfil especial.
+
+
+14. Solicitação de Caminhões
+----------------------------
+Aba: Frota
+Permissão principal: solicitacao_caminhoes
+
+Para que serve:
+CD 806 solicita para a Frota quantos caminhões precisa no dia seguinte ou em determinado período.
+
+Uso no piloto:
+Ajuda a organizar necessidade de caminhões entre CDs.
+
+Permissões relacionadas:
+- solicitacao_caminhoes: permite abrir/criar solicitação.
+- tratar_solicitacao_caminhoes: permite responder, cancelar ou concluir.
+- notificar_solicitacao_caminhoes: recebe alerta de solicitação.
+
+
+15. Itens do Check-list Frota
+-----------------------------
+Aba: Frota
+Permissão principal: checklist_frota_itens ou editar_checklist_frota
+
+Para que serve:
+Editar grupos, perguntas, obrigatoriedade e ativação/desativação de itens do check-list.
+
+Uso no piloto:
+Supervisor pode ajustar o check-list conforme operação real.
+
+Permissões relacionadas:
+- checklist_frota_itens: abre a tela.
+- editar_checklist_frota: permite editar itens e estrutura.
+- criar_registros: permite criar item.
+- editar_registros: permite editar.
+- consultar_registros: permite consultar.
+
+
+16. Materiais da Frota
+----------------------
+Aba: Frota
+Permissão principal: materiais_frota
+
+Para que serve:
+Controlar materiais, peças, ferramentas e itens da frota.
+
+Uso no piloto:
+Pode ser usado depois do fluxo principal de check-list/carregamento.
+
+Permissões relacionadas:
+- materiais_frota: abre a tela.
+- criar_registros, consultar_registros, editar_registros, excluir_registros.
+
+
+EXPEDIÇÃO
+=========
+
+17. Saldo de Pallets / Pallets por CD
+-------------------------------------
+Aba: Expedição
+Permissão principal: expedicao_planejamento
+
+Para que serve:
+Expedição informa quantos pallets existem por loja no CD atual.
+
+Uso no piloto:
+Expedição 801 lança o saldo do CD 801.
+Expedição 806 lança o saldo do CD 806.
+Frota usa esse saldo para vincular veículos.
+
+Permissões relacionadas:
+- expedicao_planejamento: abre a tela de saldo.
+- criar_registros: permite salvar saldo.
+- consultar_registros: consulta histórico.
+- editar_registros: altera registros, se liberado.
+- corrigir_saldo_paletes: corrige saldo errado.
+- visualizar_cds_unificados: permite ver os dois CDs, mas não deve significar permissão automática para alterar o outro CD.
+- notificar_saldo_paletes: recebe aviso quando saldo for atualizado.
+
+Regra operacional:
+Salvar saldo deve atualizar a quantidade da loja/CD, não somar indefinidamente. Se lançou errado, deve corrigir o saldo.
+
+
+18. Expedição / Confirmação de Carregamento
+-------------------------------------------
+Aba: Expedição
+Permissão principal: expedicao
+
+Para que serve:
+Expedição acompanha cargas vinculadas pela Frota e confirma o carregamento quando for executado.
+
+Uso no piloto:
+Quando a Frota vincula carga para o CD 801 ou CD 806, o login da expedição correspondente recebe informação para executar.
+
+Permissões relacionadas:
+- expedicao: abre a tela da expedição.
+- consultar_registros: consulta cargas.
+- criar_registros: confirma/lança quando permitido.
+- receber_alertas_expedicao: recebe alerta operacional.
+- solicitar_lancamento_manual_expedicao: solicita aprovação quando precisar lançar manualmente.
+
+Regra de notificação por CD:
+Se a carga sai só do CD 801, apenas Expedição 801 deve receber.
+Se a carga sai só do CD 806, apenas Expedição 806 deve receber.
+Se a carga usa os dois CDs, as duas expedições devem receber.
+Supervisores e analistas com permissão gerencial podem receber visão geral.
+
+
+19. Relatório de Pallets
+------------------------
+Aba: Expedição
+Permissão principal: relatorio_paletes_cd
+
+Para que serve:
+Consultar saldos e movimentações de pallets por loja/CD.
+
+Uso no piloto:
+Supervisor e analista acompanham o que foi lançado, vinculado e carregado.
+
+Permissões relacionadas:
+- relatorio_paletes_cd: abre o relatório.
+- consultar_registros: consulta registros.
+- ver_graficos_resumos: vê resumos/cards.
+- visualizar_cds_unificados: vê 801 e 806 juntos.
+- exportar_dados: exporta quando necessário.
+
+
+COLABORADORES / ANDRESSA
+========================
+
+20. Gestão de Colaboradores
+---------------------------
+Aba: Colaboradores
+Permissão principal: colaboradores_hub
+
+Para que serve:
+Hub em cards para acessar férias, ausências, quadro do dia, gargalos e capacidade.
+
+Uso no piloto:
+Tela principal da Andressa e responsáveis por pessoas.
+
+Permissões relacionadas:
+- colaboradores_hub: abre a central.
+- mapa_calor_ferias: mostra mapa de calor de férias.
+- visualizar_gargalos_colaboradores: mostra risco/gargalo por setor.
+- configurar_alertas_ferias: configura alertas.
+- notificacoes_ferias_colaboradores: recebe notificações de férias/ausências.
+
+
+21. Pessoas no Turno
+--------------------
+Aba: Colaboradores
+Permissão principal: pessoas_turno
+
+Para que serve:
+Informar quadro planejado, ativos, atestados, afastados, férias, folgas e faltas por setor/função.
+
+Uso no piloto:
+Base para calcular gargalo operacional por setor.
+
+Permissões relacionadas:
+- pessoas_turno: abre a tela.
+- criar_registros: cadastra quadro.
+- consultar_registros: consulta.
+- editar_registros: altera.
+- visualizar_gargalos_colaboradores: permite leitura gerencial do impacto.
+
+
+22. Funções do Turno
+--------------------
+Aba: Colaboradores
+Permissão principal: funcoes_turno
+
+Para que serve:
+Cadastro das funções/setores usados para organizar Pessoas no Turno.
+
+Uso no piloto:
+Base para Andressa/supervisores montarem capacidade de setor.
+
+Permissões relacionadas:
+- funcoes_turno: abre a tela.
+- criar_registros, consultar_registros, editar_registros, excluir_registros.
+
+
+23. Férias dos Colaboradores
+----------------------------
+Aba: Colaboradores
+Permissão principal: ferias_colaboradores
+
+Para que serve:
+Cadastrar colaborador, setor, função, início de férias, fim, retorno previsto e status.
+
+Uso no piloto:
+Andressa controla férias e sistema ajuda a gerar alerta quando alguém vai sair, está de férias ou vai retornar.
+
+Permissões relacionadas:
+- ferias_colaboradores: abre tela.
+- gerenciar_ferias_colaboradores: poder gerencial para controlar férias.
+- mapa_calor_ferias: mostra concentração de férias.
+- alertas_ferias: alerta flutuante de férias.
+- notificacoes_ferias_colaboradores: recebe Push/interno de férias.
+- configurar_alertas_ferias: configura quando e como alertar.
+
+
+24. Ausências dos Colaboradores
+-------------------------------
+Aba: Colaboradores
+Permissão principal: ausencias_colaboradores
+
+Para que serve:
+Cadastrar atestados, afastamentos, folgas e faltas.
+
+Uso no piloto:
+Complementa o cálculo de gargalo, porque o risco operacional não vem só de férias.
+
+Permissões relacionadas:
+- ausencias_colaboradores: abre tela.
+- criar_registros, consultar_registros, editar_registros.
+- visualizar_gargalos_colaboradores: usa os dados para análise.
+- notificacoes_ferias_colaboradores: pode receber alerta de ausência relevante.
+
+
+25. Setores Detalhados dos Colaboradores
+----------------------------------------
+Recurso opcional
+Permissão principal: setores_detalhados_colaboradores
+
+Para que serve:
+Permite detalhar setores/ruas/áreas específicas, principalmente quando a operação do CD 801 exigir esse nível de detalhe.
+
+Uso no piloto:
+Pode ficar desativado enquanto não for necessário, para não deixar a tela complexa.
+
+Permissões relacionadas:
+- setores_detalhados_colaboradores: libera campos detalhados.
+
+
+EQUIPAMENTOS
+============
+
+26. Equipamentos
+----------------
+Aba: Recursos e perdas
+Permissão principal: equipamentos
+
+Para que serve:
+Cadastrar equipamento por colaborador: coletor, paleteira, computador, empilhadeira e outros.
+
+Uso no piloto:
+Apoia controle de patrimônio, status e vínculo com colaborador/CD.
+
+Permissões relacionadas:
+- equipamentos: abre a tela.
+- criar_registros: cadastra equipamento.
+- consultar_registros: consulta.
+- editar_registros: altera.
+- excluir_registros: exclui, se liberado.
+- saude_equipamentos: permite visão gerencial de saúde/criticidade.
+- visualizar_cds_unificados: permite ver equipamentos de mais de um CD quando liberado.
+
+Regra recomendada:
+Usuário comum deve ver equipamentos do próprio CD. Visão 801+806 deve ser liberada só para quem realmente precisa.
+
+
+27. Manutenção de Equipamentos
+------------------------------
+Aba: Recursos e perdas
+Permissão principal: manutencao_equipamentos
+
+Para que serve:
+Registrar envio ao TI, manutenção, retorno, destino, problema e histórico por patrimônio.
+
+Uso no piloto:
+Mostrar recorrência de coletor/computador/impressora com problema para justificar troca ou cobrança.
+
+Permissões relacionadas:
+- manutencao_equipamentos: abre a tela.
+- saude_equipamentos: permite acompanhar recorrência.
+- criar_registros, consultar_registros, editar_registros.
+
+
+NOTIFICAÇÕES
+============
+
+28. Notificações Frota/Expedição
+--------------------------------
+Permissões principais:
+- notificar_carga_vinculada
+- notificar_alteracao_carga
+- notificar_saldo_paletes
+- notificar_motorista_vinculado
+- notificar_checklist_motorista
+- receber_alertas_expedicao
+
+Como funciona:
+O sistema cria notificação interna e, se o aparelho estiver registrado, envia Push.
+
+Exemplos:
+- Saldo da loja X no CD 806 foi atualizado para Y pallets.
+- Loja 01 vinculada ao motorista Anderson, placa STH8D95.
+- Expedição 806 deve preparar carga que passará pelo CD 806.
+- Motorista confirmou check-list de saída.
+
+Filtro por CD:
+Expedição 801 recebe alerta de carga do 801.
+Expedição 806 recebe alerta de carga do 806.
+Quando uma carga usa os dois CDs, os dois recebem.
+
+
+29. Notificações Férias/Colaboradores
+-------------------------------------
+Permissões principais:
+- notificacoes_ferias_colaboradores
+- alertas_ferias
+- configurar_alertas_ferias
+
+Como funciona:
+Sistema usa férias e ausências cadastradas para alertar responsáveis conforme configuração.
+
+Uso no piloto:
+Andressa e supervisores/líderes podem receber alertas por setor, se liberado.
+
+
+30. Alertas flutuantes
+----------------------
+Permissões principais:
+- alertas_frota
+- alertas_ferias
+
+Para que serve:
+Mostra botão/sino de alertas na tela com pontos importantes.
+
+Uso no piloto:
+Frota vê pendências de frota.
+Colaboradores vê alertas de férias/ausências.
+
+
+PERMISSÕES DE AÇÃO GERAL
+========================
+
+criar_registros
+---------------
+Permite cadastrar/preencher registros em telas liberadas.
+
+consultar_registros
+-------------------
+Permite ver registros salvos.
+
+editar_registros
+----------------
+Permite alterar registros já salvos.
+
+excluir_registros
+-----------------
+Permite excluir registros.
+Recomendação: liberar com cuidado.
+
+exportar_dados
+--------------
+Permite exportar bases em CSV/Excel quando disponível.
+
+ver_graficos_resumos
+--------------------
+Permite ver cards, indicadores e resumos.
+
+visualizar_cds_unificados
+-------------------------
+Permite enxergar informações de CD 801 e CD 806 juntos.
+Importante: visualizar unificado não deve significar editar tudo. A edição deve depender da tela e das permissões de ação.
+
+trocar_cd
+---------
+Permite trocar o CD selecionado no topo da tela.
+
+
+RECOMENDAÇÃO DE PERMISSÕES POR PERFIL NO PILOTO
+===============================================
+
+Motorista
+---------
+- painel
+- checklist_frota
+- criar_registros
+- notificar_motorista_vinculado
+
+Expedição 801 / Expedição 806
+-----------------------------
+- painel
+- expedicao_planejamento
+- expedicao
+- relatorio_paletes_cd, se for necessário consultar
+- criar_registros
+- consultar_registros
+- receber_alertas_expedicao
+- solicitar_lancamento_manual_expedicao
+- notificar_saldo_paletes, se precisar receber aviso de saldo
+
+Supervisor de Frota
+-------------------
+- painel
+- painel_frota
+- checklist_frota
+- veiculos_frota
+- escala_veiculos_frota
+- carregamento_veiculos
+- aprovacoes_carregamento
+- solicitacao_caminhoes
+- relatorio_paletes_cd
+- consultar_registros
+- criar_registros
+- editar_registros
+- ver_graficos_resumos
+- visualizar_cds_unificados
+- vincular_cargas_expedicao
+- aprovar_lancamento_manual_expedicao
+- notificar_carga_vinculada
+- notificar_alteracao_carga
+- notificar_saldo_paletes
+- notificar_checklist_motorista
+- notificar_solicitacao_caminhoes
+- alertas_frota
+
+Andressa / Colaboradores
+------------------------
+- painel
+- colaboradores_hub
+- pessoas_turno
+- funcoes_turno
+- ferias_colaboradores
+- ausencias_colaboradores
+- criar_registros
+- consultar_registros
+- editar_registros
+- mapa_calor_ferias
+- visualizar_gargalos_colaboradores
+- gerenciar_ferias_colaboradores
+- configurar_alertas_ferias
+- notificacoes_ferias_colaboradores
+- alertas_ferias
+
+Equipamentos / Analista responsável
+-----------------------------------
+- painel
+- equipamentos
+- manutencao_equipamentos
+- criar_registros
+- consultar_registros
+- editar_registros
+- saude_equipamentos
+
+Gerência / Naka
+---------------
+- painel
+- painel_gestao
+- consultar_registros
+- ver_graficos_resumos
+- visualizar_cds_unificados
+- painel_frota, se quiser acompanhar frota
+- relatorio_paletes_cd, se quiser acompanhar expedição
+- colaboradores_hub, se quiser acompanhar pessoas
+- visualizar_gargalos_colaboradores, se quiser acompanhar risco de operação
+
+
+O que o sistema ajuda a resolver no piloto
+=========================================
+1. Reduzir desencontro entre Frota e Expedição.
+2. Registrar saldo de pallets por loja e CD.
+3. Vincular carga a motorista/placa com histórico.
+4. Avisar responsáveis por Push/notificação interna.
+5. Acompanhar check-list de saída e retorno.
+6. Controlar férias, ausências e possível gargalo por setor.
+7. Controlar equipamentos por colaborador e histórico de manutenção.
+8. Separar permissões para cada pessoa ver apenas o necessário.
+9. Permitir uso portátil em celular, tablet e computador.
+10. Criar base para evolução futura sem depender de planilhas soltas.
+
+
+Pontos de atenção no piloto
+===========================
+1. Conferir se cada login está com o CD padrão correto.
+2. Não liberar editar/excluir para todos.
+3. Expedição deve lançar saldo do próprio CD.
+4. Frota deve vincular carga quando houver definição de motorista/placa.
+5. Motorista precisa preencher saída e retorno.
+6. Notificação Push precisa ser ativada no aparelho de cada usuário que deverá receber alerta.
+7. Se algum dado aparecer duplicado, registrar o caso para corrigirmos a base.
+8. As telas podem continuar sendo simplificadas conforme o uso real mostrar o que sobra ou falta.
+
+
+Resumo para apresentação
+========================
+A Central CD Krill é uma ferramenta operacional criada para apoiar a rotina dos CDs 801 e 806, com foco inicial em Frota, Expedição, Colaboradores e Equipamentos.
+
+Ela não substitui a Bluesoft. Ela complementa a operação onde hoje existem controles paralelos, comunicação por WhatsApp e planilhas manuais.
+
+O piloto serve para validar se o sistema ajuda a operação a trabalhar com menos retrabalho, mais rastreabilidade e melhor acompanhamento em tempo real.
+

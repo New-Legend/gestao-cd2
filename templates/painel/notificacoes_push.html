@@ -1,0 +1,117 @@
+{% extends "painel/base.html" %}
+
+{% block content %}
+<section class="panel fusao-admin-panel">
+  <div class="panel-title-row">
+    <div>
+      <h2>Controle de notificações Push</h2>
+      <p>Teste envios, acompanhe aparelhos registrados e corrija chaves quando algum celular recusar o Push.</p>
+    </div>
+    <span class="status-pill {% if webpush_enabled %}ok{% else %}paused{% endif %}">
+      {% if webpush_enabled %}Push ativo{% else %}Push pendente{% endif %}
+    </span>
+  </div>
+
+  <div class="card-grid">
+    <article class="card fusao-metric-card">
+      <span>Usuários com aparelho ativo</span>
+      <strong>{{ active_push_users }}</strong>
+    </article>
+    <article class="card fusao-metric-card">
+      <span>Chave pública</span>
+      <strong>{% if push_public_key %}Carregada{% else %}Ausente{% endif %}</strong>
+    </article>
+  </div>
+</section>
+
+<section class="panel fusao-admin-panel">
+  <h2>Enviar teste</h2>
+  <p>Use primeiro em você. Enviar para todos deve ser usado somente para validação geral.</p>
+  <div class="action-grid">
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="test_self">
+      <button class="btn" type="submit">Testar no meu usuário</button>
+    </form>
+
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="test_user">
+      <select class="field" name="user_id" required>
+        <option value="">Selecionar usuário</option>
+        {% for user in users %}
+          <option value="{{ user.id }}">{{ user.get_full_name|default:user.username }} · {{ user.username }}</option>
+        {% endfor %}
+      </select>
+      <button class="btn secondary" type="submit">Enviar para usuário</button>
+    </form>
+
+    <form method="post" onsubmit="return confirm('Enviar teste Push para todos os usuários ativos com aparelho registrado?')">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="test_all">
+      <button class="btn secondary" type="submit">Enviar para todos ativos</button>
+    </form>
+  </div>
+</section>
+
+<details class="panel fusao-admin-panel records-panel">
+  <summary>
+    <span>Aparelhos registrados</span>
+    <span class="summary-count">{{ subscriptions|length }}</span>
+  </summary>
+  <div class="panel-body">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Usuário</th>
+            <th>Status</th>
+            <th>Atualizado</th>
+            <th>Último erro</th>
+            <th>Ação</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in subscriptions %}
+            <tr>
+              <td><strong>{{ item.usuario.get_full_name|default:item.usuario.username }}</strong><br><small>{{ item.usuario.username }}</small></td>
+              <td>{% if item.ativo %}<span class="status-pill ok">Ativo</span>{% else %}<span class="status-pill paused">Inativo</span>{% endif %}</td>
+              <td>{{ item.atualizado_em|date:"d/m/Y H:i" }}</td>
+              <td>{{ item.ultimo_erro|default:"-" }}</td>
+              <td>
+                {% if item.ativo %}
+                  <form method="post" onsubmit="return confirm('Desvincular este aparelho do usuário?')">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="disable_subscription">
+                    <input type="hidden" name="subscription_id" value="{{ item.id }}">
+                    <button class="btn secondary small" type="submit">Desvincular</button>
+                  </form>
+                {% else %}
+                  <span class="muted">-</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="5">Nenhum aparelho registrado ainda.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</details>
+
+<details class="panel fusao-admin-panel">
+  <summary>
+    <span>Manutenção técnica</span>
+    <span class="summary-count">!</span>
+  </summary>
+  <div class="panel-body">
+    <p>Use apenas se aparecer erro de token Push. Isso invalida assinaturas antigas e cada usuário precisará ativar notificações novamente no aparelho.</p>
+    <form method="post" onsubmit="return confirm('Redefinir chaves Push e invalidar todas as assinaturas atuais?')">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="reset_keys">
+      <button class="btn secondary" type="submit">Redefinir chaves Push</button>
+    </form>
+  </div>
+</details>
+{% endblock %}

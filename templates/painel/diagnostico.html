@@ -1,0 +1,149 @@
+﻿{% extends "painel/base.html" %}
+{% load painel_extras %}
+{% block title %}Diagnóstico do servidor - Gestão CD{% endblock %}
+{% block page_title %}Diagnóstico do servidor{% endblock %}
+{% block content %}
+  <section class="hero fusao-admin-panel" style="padding:16px">
+    <div class="panel-title" style="margin:0;align-items:flex-start">
+      <div>
+        <h2 style="margin:0;font-size:clamp(24px,4vw,38px)">Saúde do Gestão CD</h2>
+        <p>Gerado em {{ snapshot.gerado_em|date:"d/m/Y H:i:s" }} no computador {{ snapshot.computador }}.</p>
+      </div>
+      <a class="btn secondary" href="{% url 'diagnostico' %}?exportar=txt">Baixar TXT</a>
+    </div>
+  </section>
+
+  <section class="grid cards fusao-card-grid">
+    <article class="card fusao-metric-card">
+      <span>Banco de dados</span>
+      <strong>{% if snapshot.banco.ok %}Online{% else %}Erro{% endif %}</strong>
+      <p class="muted">{{ snapshot.banco.mensagem }}</p>
+    </article>
+    <article class="card fusao-metric-card">
+      <span>Disco livre</span>
+      <strong>{{ snapshot.disco.livre_gb }} GB</strong>
+      <p class="muted">{{ snapshot.disco.percentual_usado }}% usado</p>
+    </article>
+    <article class="card fusao-metric-card">
+      <span>Pasta .50</span>
+      <strong>{% if snapshot.pasta_50.acessivel %}OK{% else %}Pendente{% endif %}</strong>
+      <p class="muted">{{ snapshot.pasta_50.configurada|default:"Não configurada" }}</p>
+    </article>
+    <article class="card fusao-metric-card">
+      <span>Versão</span>
+      <strong style="font-size:18px">{{ snapshot.versao }}</strong>
+      <p class="muted">DEBUG {% if snapshot.debug %}ativo{% else %}inativo{% endif %}</p>
+    </article>
+  </section>
+
+  <div class="two-col" style="margin-top:16px">
+    <section class="panel fusao-admin-panel">
+      <div class="panel-title">
+        <div>
+          <h2>Endereços</h2>
+          <p>Links ativos para o servidor atual.</p>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>URL</th></tr></thead>
+          <tbody>
+            {% for url in snapshot.urls %}
+              <tr><td><strong>{{ url }}</strong></td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel fusao-admin-panel">
+      <div class="panel-title">
+        <div>
+          <h2>Ambiente</h2>
+          <p>Caminhos principais do servidor.</p>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <tbody>
+            <tr><th>Sistema</th><td>{{ snapshot.sistema }}</td></tr>
+            <tr><th>Python</th><td>{{ snapshot.python }}</td></tr>
+            <tr><th>Pasta web</th><td>{{ snapshot.base_dir }}</td></tr>
+            <tr><th>Instalação</th><td>{{ snapshot.install_root }}</td></tr>
+            <tr><th>PostgreSQL bin</th><td>{{ snapshot.postgres.bin }} - {% if snapshot.postgres.bin_ok %}OK{% else %}não encontrado{% endif %}</td></tr>
+            <tr><th>PostgreSQL dados</th><td>{{ snapshot.postgres.data }} - {% if snapshot.postgres.data_ok %}OK{% else %}não encontrado{% endif %}</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <section class="panel fusao-admin-panel">
+    <div class="panel-title">
+      <div>
+        <h2>Backups recentes</h2>
+        <p>Últimos registros conhecidos.</p>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Data</th><th>Destino</th><th>Status</th><th>Tamanho</th><th>Arquivo/mensagem</th></tr></thead>
+        <tbody>
+          {% for backup in backups %}
+            <tr>
+              <td>{{ backup.criado_em|date:"d/m/Y H:i" }}</td>
+              <td>{{ backup.get_destino_display }}</td>
+              <td>{{ backup.get_status_display }}</td>
+              <td>{{ backup.tamanho_bytes|filesize_mb }}</td>
+              <td>{{ backup.arquivo|default:backup.mensagem }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="5">Nenhum backup registrado.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel fusao-admin-panel">
+    <div class="panel-title">
+      <div>
+        <h2>Usuários ativos</h2>
+        <p>Sessões ainda válidas.</p>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Usuário</th><th>Login</th><th>CD</th><th>Tela</th><th>Expira</th></tr></thead>
+        <tbody>
+          {% for item in usuarios_ativos %}
+            <tr>
+              <td>{{ item.usuario }}</td>
+              <td>{{ item.login }}</td>
+              <td>{{ item.cd }}</td>
+              <td>{{ item.rota }}</td>
+              <td>{{ item.expira_em|date:"d/m/Y H:i" }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="5">Nenhum usuário ativo encontrado.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="grid" style="grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px">
+    {% for titulo, linhas in snapshot.logs.items %}
+      <article class="panel" style="margin:0">
+        <div class="panel-title">
+          <div>
+            <h2>Log {{ titulo }}</h2>
+            <p>Linhas mais recentes.</p>
+          </div>
+        </div>
+        <pre style="margin:0;white-space:pre-wrap;word-break:break-word;background:#061d37;color:#d9ecff;border-radius:8px;padding:12px;min-height:180px;max-height:340px;overflow:auto">{% for linha in linhas %}{{ linha }}
+{% empty %}Sem linhas recentes.{% endfor %}</pre>
+      </article>
+    {% endfor %}
+  </section>
+{% endblock %}

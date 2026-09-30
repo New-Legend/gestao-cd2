@@ -1,0 +1,156 @@
+﻿{% extends "painel/base.html" %}
+{% load painel_extras %}
+{% block title %}Central do servidor{% endblock %}
+{% block page_title %}Central do servidor{% endblock %}
+{% block content %}
+  <section class="hero fusao-admin-panel" style="padding:16px">
+    <h2 style="margin:0;font-size:clamp(24px,4vw,40px)">Servidor do Gestão CD</h2>
+    <p>Use esta tela para acompanhar rede, banco, backups e o endereço oficial para os colegas.</p>
+  </section>
+
+  <section class="grid cards">
+    <article class="card fusao-metric-card"><span>Banco de dados</span><strong>{% if db_status.ok %}Online{% else %}Erro{% endif %}</strong><p class="muted">{{ db_status.mensagem }}</p></article>
+    <article class="card fusao-metric-card"><span>Usuários/sessões ativas</span><strong>{{ active_sessions }}</strong><p class="muted">Sessões ainda válidas no navegador</p></article>
+    <article class="card fusao-metric-card"><span>Disco livre</span><strong>{{ disk.livre_gb }} GB</strong><p class="muted">{{ disk.percentual_usado }}% usado</p></article>
+    <article class="card fusao-metric-card"><span>Último backup OK</span><strong style="font-size:18px">{% if last_backup %}{{ last_backup.criado_em|date:"d/m H:i" }}{% else %}Nenhum{% endif %}</strong><p class="muted">{% if last_backup %}{{ last_backup.get_destino_display }}{% endif %}</p></article>
+    <article class="card fusao-metric-card"><span>Registros salvos</span><strong>{{ db_health.total_registros }}</strong><p class="muted">Tamanho aprox.: {{ db_health.size_mb }} MB</p></article>
+  </section>
+
+  <div class="two-col" style="margin-top:16px">
+    <section class="panel fusao-admin-panel">
+      <div class="panel-title">
+        <div>
+          <h2>Endereços de acesso</h2>
+          <p>Passe o endereço da rede para os outros computadores.</p>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Endereço</th></tr></thead>
+          <tbody>
+            {% for url in urls_servidor %}
+              <tr><td><strong>{{ url }}</strong></td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <form method="post" style="margin-top:12px">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="publicar_endereco">
+        <button class="btn secondary" type="submit">Publicar endereço na .50</button>
+      </form>
+      {% if ultimo_endereco_publicado %}<p class="muted" style="margin-top:10px">Último endereço publicado: {{ ultimo_endereco_publicado }}</p>{% endif %}
+    </section>
+
+    <section class="panel fusao-admin-panel">
+      <div class="panel-title">
+        <div>
+          <h2>Backup na pasta .50</h2>
+          <p>Configure a pasta compartilhada para salvar backups e endereço oficial.</p>
+        </div>
+      </div>
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="salvar_pasta_50">
+        <label for="pasta_50">Caminho da pasta .50</label>
+        <input class="field" id="pasta_50" name="pasta_50" value="{{ pasta_50 }}" placeholder="Ex.: \\servidor\.50\Modelo_Teste">
+        <label style="display:flex;align-items:center;gap:8px;margin-top:10px">
+          <input type="checkbox" name="backup_automatico_50" {% if backup_automatico_50 %}checked{% endif %}>
+          Backup automático diário quando o painel for aberto
+        </label>
+        <p class="muted">Status da pasta: {% if pasta_50_ok %}acessível{% else %}não configurada ou inacessível{% endif %}</p>
+        <div class="actions" style="margin-top:12px">
+          <button class="btn" type="submit">Salvar configuração</button>
+        </div>
+      </form>
+      <div class="actions" style="margin-top:12px">
+        <form method="post">{% csrf_token %}<input type="hidden" name="action" value="backup_local"><button class="btn secondary" type="submit">Backup local agora</button></form>
+        <form method="post">{% csrf_token %}<input type="hidden" name="action" value="backup_50"><button class="btn secondary" type="submit">Salvar backup na .50 agora</button></form>
+        <form method="post">{% csrf_token %}<input type="hidden" name="action" value="backup_zip"><button class="btn" type="submit">Baixar backup completo ZIP</button></form>
+      </div>
+      <p class="muted" style="margin-top:10px">O backup ZIP funciona também no Render e baixa uma cópia completa dos dados pelo navegador.</p>
+    </section>
+  </div>
+
+  <section class="panel fusao-admin-panel">
+    <div class="panel-title">
+      <div>
+        <h2>Saúde do banco de dados</h2>
+        <p>Acompanhe o tamanho da base e baixe backups antes de qualquer teste maior.</p>
+      </div>
+    </div>
+    {% if db_health.avisos %}
+      <div class="alert warning">
+        {% for aviso in db_health.avisos %}
+          <p>{{ aviso }}</p>
+        {% endfor %}
+      </div>
+    {% endif %}
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Módulo</th><th>Registros</th></tr></thead>
+        <tbody>
+          {% for item in db_health.maiores_tabelas %}
+            <tr><td>{{ item.titulo }}</td><td>{{ item.quantidade }}</td></tr>
+          {% empty %}
+            <tr><td colspan="2">Ainda não há registros operacionais.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel fusao-admin-panel">
+    <div class="panel-title">
+      <div>
+        <h2>Usuários ativos agora</h2>
+        <p>Sessões válidas no navegador. Ajuda a saber quem está usando antes de atualizar ou fechar o servidor.</p>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Usuário</th><th>Login</th><th>CD</th><th>Última tela</th><th>Sessão expira</th></tr></thead>
+        <tbody>
+          {% for item in usuarios_ativos %}
+            <tr>
+              <td>{{ item.usuario }}</td>
+              <td>{{ item.login }}</td>
+              <td>{{ item.cd }}</td>
+              <td>{{ item.rota }}</td>
+              <td>{{ item.expira_em|date:"d/m/Y H:i" }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="5">Nenhum usuário ativo encontrado.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel fusao-admin-panel">
+    <div class="panel-title">
+      <div>
+        <h2>Histórico de backups</h2>
+        <p>Os últimos backups ficam aqui para conferência.</p>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Data/hora</th><th>Destino</th><th>Status</th><th>Tamanho</th><th>Arquivo/mensagem</th></tr></thead>
+        <tbody>
+          {% for backup in backups %}
+            <tr>
+              <td>{{ backup.criado_em|date:"d/m/Y H:i" }}</td>
+              <td>{{ backup.get_destino_display }}</td>
+              <td>{{ backup.get_status_display }}</td>
+              <td>{{ backup.tamanho_bytes|filesize_mb }}</td>
+              <td>{{ backup.arquivo|default:backup.mensagem }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="5">Nenhum backup registrado ainda.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% endblock %}

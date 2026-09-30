@@ -1,0 +1,140 @@
+{% extends "painel/base.html" %}
+{% block title %}{{ ui_labels.apresentacao_sistema }} - Gestão CD{% endblock %}
+{% block page_title %}{{ ui_labels.apresentacao_sistema }}{% endblock %}
+{% block content %}
+  <section class="hero fusao-admin-panel" style="padding:16px">
+    <h2 style="margin:0;font-size:clamp(26px,4vw,44px)">Gestão CD</h2>
+    <p>Ferramenta operacional para apoiar frota, expedição, colaboradores, férias, equipamentos, alertas e permissões nos CDs 801 e 806.</p>
+  </section>
+
+  <section class="panel fusao-admin-panel">
+    <div class="panel-title">
+      <div>
+        <h2>Resumo para apresentação</h2>
+        <p>Use esta tela para explicar o projeto de forma objetiva para supervisão, gerência, diretoria ou TI.</p>
+      </div>
+      <button class="btn secondary" type="button" onclick="window.print()">Imprimir / salvar PDF</button>
+    </div>
+    <div class="grid cards fusao-card-grid">
+      <article class="card fusao-metric-card"><span>Objetivo</span><strong>Decisão rápida</strong><p class="muted">Centralizar rotinas que hoje ficam espalhadas em WhatsApp, planilhas e conferência manual.</p></article>
+      <article class="card fusao-metric-card"><span>Uso principal</span><strong>Portátil</strong><p class="muted">Sistema pensado para celular, coletor, tablet e PC, com PWA instalável.</p></article>
+      <article class="card fusao-metric-card"><span>Controle</span><strong>Permissões</strong><p class="muted">Cada tela, painel e ação pode ser liberada conforme o perfil do usuário.</p></article>
+      <article class="card fusao-metric-card"><span>Rastreabilidade</span><strong>Auditoria</strong><p class="muted">Registra ações importantes, alterações e solicitações para dar segurança à operação.</p></article>
+    </div>
+  </section>
+
+  <section class="panel fusao-admin-panel">
+    <div class="panel-title">
+      <div>
+        <h2>Problemas que o sistema resolve</h2>
+        <p>Principais dores operacionais que motivaram o projeto.</p>
+      </div>
+    </div>
+    <div class="dashboard-focus-grid">
+      <article class="compact-panel">
+        <h3>Informação espalhada</h3>
+        <p class="muted">Dados de frota, férias, equipamentos e pendências ficam em locais diferentes, dificultando acompanhamento rápido.</p>
+      </article>
+      <article class="compact-panel">
+        <h3>Dependência de mensagem</h3>
+        <p class="muted">Avisos importantes podem se perder em grupos de WhatsApp ou depender de alguém lembrar de avisar.</p>
+      </article>
+      <article class="compact-panel">
+        <h3>Baixa visibilidade</h3>
+        <p class="muted">Supervisão e gerência precisam enxergar gargalos antes de virarem problema no carregamento ou no quadro de pessoas.</p>
+      </article>
+      <article class="compact-panel">
+        <h3>Retrabalho</h3>
+        <p class="muted">O sistema reduz digitação repetida com cadastros de lojas, motoristas, placas, equipamentos e permissões.</p>
+      </article>
+    </div>
+  </section>
+
+  <section class="panel fusao-admin-panel">
+    <div class="panel-title">
+      <div>
+        <h2>Módulos principais</h2>
+        <p>O sistema pode crescer por área, mantendo permissões separadas.</p>
+      </div>
+    </div>
+    <div class="module-hub-grid">
+      <article class="module-hub-card">
+        <div class="module-hub-head"><strong>Frota</strong><span>ativo</span></div>
+        <div class="module-hub-links">
+          <p class="muted">Check-list de saída/retorno, painel da frota, motoristas e placas, cargas vinculadas, aprovações e notificações Push.</p>
+        </div>
+      </article>
+      <article class="module-hub-card">
+        <div class="module-hub-head"><strong>Expedição</strong><span>ativo</span></div>
+        <div class="module-hub-links">
+          <p class="muted">Saldo de pallets por CD, carregamento por veículo, visão CD 801 x CD 806 e relatório de pallets.</p>
+        </div>
+      </article>
+      <article class="module-hub-card">
+        <div class="module-hub-head"><strong>Colaboradores</strong><span>ativo</span></div>
+        <div class="module-hub-links">
+          <p class="muted">Férias, ausências, quadro por setor, gargalo operacional, alertas configuráveis e futura gestão de EPI.</p>
+        </div>
+      </article>
+      <article class="module-hub-card">
+        <div class="module-hub-head"><strong>Equipamentos</strong><span>ativo</span></div>
+        <div class="module-hub-links">
+          <p class="muted">Controle de coletores, paleteiras, computadores, manutenção e histórico para justificar troca de patrimônio.</p>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <section class="panel fusao-admin-panel">
+    <div class="panel-title">
+      <div>
+        <h2>Segurança e gestão</h2>
+        <p>Pontos que costumam ser perguntados por gestor ou TI.</p>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Tema</th><th>Como funciona</th><th>Benefício</th></tr></thead>
+        <tbody>
+          <tr><td>Login</td><td>Cada usuário entra com login e senha próprios; motoristas também podem ter login individual.</td><td>Identifica quem realizou cada ação.</td></tr>
+          <tr><td>Permissões</td><td>O master libera tela, painel, ação e notificação conforme necessidade.</td><td>Evita tela poluída e acesso indevido.</td></tr>
+          <tr><td>Notificações</td><td>Push e alerta interno para eventos de frota, expedição e futuramente férias.</td><td>Reduz atraso de comunicação.</td></tr>
+          <tr><td>Auditoria</td><td>Histórico de ações críticas, alterações e solicitações.</td><td>Ajuda a conferir erros e responsabilidade.</td></tr>
+          <tr><td>Contingência</td><td>Se o Push falhar, o sino e as telas operacionais continuam mostrando os avisos.</td><td>Operação não depende de apenas um canal.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel fusao-admin-panel">
+    <div class="panel-title">
+      <div>
+        <h2>Tecnologias usadas</h2>
+        <p>Base técnica atual do projeto.</p>
+      </div>
+    </div>
+    <div class="grid cards fusao-card-grid">
+      <article class="card fusao-metric-card"><span>Backend</span><strong>Python + Django</strong></article>
+      <article class="card fusao-metric-card"><span>Banco</span><strong>PostgreSQL</strong></article>
+      <article class="card fusao-metric-card"><span>Interface</span><strong>HTML, CSS e JavaScript</strong></article>
+      <article class="card fusao-metric-card"><span>Hospedagem atual</span><strong>Render + Aiven</strong></article>
+      <article class="card fusao-metric-card"><span>Instalação mobile</span><strong>PWA</strong></article>
+      <article class="card fusao-metric-card"><span>Versionamento</span><strong>GitHub</strong></article>
+    </div>
+  </section>
+
+  <section class="panel fusao-admin-panel">
+    <div class="panel-title">
+      <div>
+        <h2>Proposta de teste controlado</h2>
+        <p>Forma segura de apresentar e validar sem mexer em toda a empresa de uma vez.</p>
+      </div>
+    </div>
+    <div class="dashboard-focus-grid">
+      <article class="compact-panel"><h3>1. Piloto</h3><p class="muted">Testar primeiro com Frota, Expedição 801/806, motoristas selecionados e rotina da Andressa.</p></article>
+      <article class="compact-panel"><h3>2. Perfis definidos</h3><p class="muted">Usar logins modelo: master, supervisor frota, expedição 801, expedição 806, motorista, colaboradores e consulta.</p></article>
+      <article class="compact-panel"><h3>3. Feedback diário</h3><p class="muted">Registrar sugestões no próprio sistema e ajustar o fluxo conforme a operação real.</p></article>
+      <article class="compact-panel"><h3>4. Expansão</h3><p class="muted">Depois de validado, envolver TI para ambiente oficial, backup, banco e servidor interno.</p></article>
+    </div>
+  </section>
+{% endblock %}

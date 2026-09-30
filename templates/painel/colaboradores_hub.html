@@ -1,0 +1,178 @@
+{% extends "painel/base.html" %}
+{% load painel_extras %}
+
+{% block title %}Gestão de Colaboradores - Gestão CD{% endblock %}
+{% block page_title %}Gestão de Colaboradores{% endblock %}
+
+{% block content %}
+<section class="panel fusao-colab-panel">
+  <div class="panel-title">
+    <div>
+      <h2>Visão rápida de colaboradores</h2>
+      <p>Um ponto único para acompanhar férias, quadro do dia, ausências, gargalos e alertas por setor.</p>
+    </div>
+    <span class="status-pill">{{ data|date:"d/m/Y" }}</span>
+  </div>
+  <div class="cards fusao-card-grid">
+    {% for label, value in colaboradores_metrics %}
+      <article class="card fusao-metric-card">
+        <span>{{ label }}</span>
+        <strong>{{ value }}</strong>
+      </article>
+    {% endfor %}
+  </div>
+</section>
+
+{% for section in colaboradores_sections %}
+  <section class="panel fusao-colab-panel mt-4">
+    <div class="panel-title">
+      <div>
+        <h2>{{ section.title }}</h2>
+        <p>{{ section.description }}</p>
+      </div>
+    </div>
+    <div class="cards frota-hub-grid fusao-card-grid">
+      {% for card in section.cards %}
+        <a class="card frota-hub-card home-action-card" href="{{ card.url }}">
+          <strong>{{ card.title }}</strong>
+          <small>{{ card.description }}</small>
+          {% if card.highlight %}<em class="text-[#073b73] font-extrabold">{{ card.highlight }}</em>{% endif %}
+        </a>
+      {% endfor %}
+    </div>
+  </section>
+{% endfor %}
+
+{% if capacidade_operacao %}
+  <details id="gargalos-colaboradores" class="panel records-panel fusao-colab-panel mt-4" open>
+    <summary>
+      <span>Gargalos da operação</span>
+      <span class="metric-pill">{{ gargalos_colaboradores|length }}</span>
+    </summary>
+    <div class="records-panel-content">
+      <div class="panel-title">
+        <div>
+          <h2>Setores em atenção</h2>
+          <p>Leitura baseada no quadro do dia, férias e ausências lançadas.</p>
+        </div>
+      </div>
+      <div class="ops-capacity-grid">
+        {% for row in gargalos_colaboradores %}
+          <article class="ops-risk-card {{ row.nivel }}">
+            <div class="ops-risk-head">
+              <div>
+                <strong>{{ row.label }}</strong>
+                <span>{{ row.disponiveis }} disponível(is) de {{ row.planejado }} planejado(s)</span>
+              </div>
+              <b class="risk-pill {{ row.nivel }}">
+                {% if row.nivel == "critico" %}Crítico{% elif row.nivel == "atencao" %}Atenção{% else %}Ok{% endif %}
+              </b>
+            </div>
+            <div class="ops-risk-numbers">
+              <span><b>{{ row.ferias_hoje }}</b> férias hoje</span>
+              <span><b>{{ row.atestados }}</b> atestado(s)</span>
+              <span><b>{{ row.afastados }}</b> afastado(s)</span>
+              <span><b>{{ row.faltas_sem_justificativa }}</b> falta(s)</span>
+            </div>
+            <div class="bar-track"><span class="bar-fill danger-fill" style="--bar-width: {{ row.bar }}%"></span></div>
+            <p>{{ row.leitura }}</p>
+          </article>
+        {% empty %}
+          <article class="card fusao-metric-card">
+            <span>Sem gargalo crítico</span>
+            <strong>Nenhum setor em atenção no momento.</strong>
+          </article>
+        {% endfor %}
+      </div>
+    </div>
+  </details>
+{% endif %}
+
+<details id="alertas-ferias" class="panel records-panel fusao-colab-panel mt-4">
+  <summary>
+    <span>Alertas de férias</span>
+    <span class="metric-pill">{{ ferias_alertas|length }}</span>
+  </summary>
+  <div class="records-panel-content">
+    <div class="panel-title">
+      <div>
+        <h2>Próximos alertas</h2>
+        <p>Colaboradores com férias próximas, em andamento ou retorno previsto.</p>
+      </div>
+    </div>
+    <div class="approval-list">
+      {% for row in ferias_alertas %}
+        <article class="approval-card">
+          <div class="approval-card-head">
+            <div>
+              <strong>{{ row.colaborador }}</strong>
+              <span>{{ row.get_setor_display }} · {{ row.funcao|default:"Função não informada" }}</span>
+            </div>
+            <span class="status-pill">{{ row.get_status_display }}</span>
+          </div>
+          <div class="record-detail-grid">
+            <span>Início: {{ row.inicio_ferias|date:"d/m/Y" }}</span>
+            <span>Fim: {{ row.fim_ferias|date:"d/m/Y" }}</span>
+            <span>Retorno: {{ row.retorno_previsto|date:"d/m/Y" }}</span>
+          </div>
+        </article>
+      {% empty %}
+        <article class="card fusao-metric-card">
+          <span>Sem alerta</span>
+          <strong>Nenhuma férias próxima no período configurado.</strong>
+        </article>
+      {% endfor %}
+    </div>
+
+    {% if can_configure_ferias_alerts %}
+      <details class="optional-panel" style="margin-top:14px">
+        <summary>Configurar regras de alerta</summary>
+        <form class="optional-panel-content" method="post" data-draft="off">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="salvar_alertas_ferias">
+          <div class="form-grid">
+            <label class="checkbox-row">
+              <input type="checkbox" name="ativo" {% if ferias_alert_config.ativo %}checked{% endif %}>
+              Alertas ativos
+            </label>
+            <label>Dias antes da saída de férias
+              <input class="field" type="number" min="0" max="60" name="dias_saida" value="{{ ferias_alert_config.dias_saida }}">
+            </label>
+            <label>Dias antes do retorno
+              <input class="field" type="number" min="0" max="60" name="dias_retorno" value="{{ ferias_alert_config.dias_retorno }}">
+            </label>
+            <label>Percentual para atenção
+              <input class="field" type="number" min="1" max="100" name="limite_atencao_pct" value="{{ ferias_alert_config.limite_atencao_pct }}">
+            </label>
+            <label>Percentual para crítico
+              <input class="field" type="number" min="1" max="100" name="limite_critico_pct" value="{{ ferias_alert_config.limite_critico_pct }}">
+            </label>
+            <label class="checkbox-row">
+              <input type="checkbox" name="notificar_master" {% if ferias_alert_config.notificar_master %}checked{% endif %}>
+              Notificar master
+            </label>
+          </div>
+          <div class="form-actions">
+            <button class="btn" type="submit">Salvar regras</button>
+          </div>
+        </form>
+      </details>
+      <form method="post" data-draft="off" style="margin-top:12px">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="processar_alertas_ferias">
+        <button class="btn secondary" type="submit">Processar alertas agora</button>
+      </form>
+    {% endif %}
+  </div>
+</details>
+
+<details id="epi-colaboradores" class="panel records-panel fusao-colab-panel mt-4">
+  <summary>
+    <span>EPI e colaboradores</span>
+    <span class="metric-pill">Em breve</span>
+  </summary>
+  <div class="records-panel-content">
+    <p class="muted">Área reservada para entrega, validade, troca e pendências de EPI por colaborador.</p>
+  </div>
+</details>
+{% endblock %}

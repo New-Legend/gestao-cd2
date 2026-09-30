@@ -1,0 +1,273 @@
+﻿<style>
+  .pwa-guide[hidden] { display: none !important; }
+  .pwa-guide {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: grid;
+    place-items: center;
+    padding: 18px;
+  }
+  .pwa-guide-backdrop { position: absolute; inset: 0; background: rgba(6, 29, 55, .68); }
+  .pwa-guide-card {
+    position: relative;
+    width: min(460px, 100%);
+    max-height: min(680px, calc(100vh - 36px));
+    overflow: auto;
+    padding: 22px;
+    border: 1px solid #d7e0eb;
+    border-top: 5px solid #ffd21f;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 24px 70px rgba(6, 29, 55, .28);
+    color: #172033;
+    font-family: "Segoe UI", Arial, sans-serif;
+  }
+  .pwa-guide-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
+  .pwa-guide-head h2 { margin: 0; color: #061d37; font-size: 22px; line-height: 1.2; }
+  .pwa-guide-close {
+    flex: 0 0 auto;
+    width: 42px;
+    height: 42px;
+    min-height: 42px;
+    margin: 0;
+    padding: 0;
+    border: 1px solid #d7e0eb;
+    border-radius: 8px;
+    background: #f3f6fa;
+    color: #061d37;
+    font: inherit;
+    font-weight: 900;
+    cursor: pointer;
+  }
+  .pwa-guide-intro { margin: 10px 0 16px; color: #627084; line-height: 1.45; }
+  .pwa-guide-steps { display: grid; gap: 9px; margin: 0; padding: 0; list-style: none; }
+  .pwa-guide-steps li { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 10px; align-items: center; padding: 10px; border: 1px solid #d7e0eb; border-radius: 8px; background: #f8fbff; font-weight: 700; line-height: 1.35; }
+  .pwa-guide-step-number { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: #073b73; color: #ffd21f; font-weight: 900; }
+  .pwa-guide-action {
+    width: 100%;
+    min-height: 48px;
+    margin: 16px 0 0;
+    padding: 10px 14px;
+    border: 0;
+    border-radius: 8px;
+    background: #0b63b5;
+    color: white;
+    font: inherit;
+    font-weight: 900;
+    cursor: pointer;
+  }
+  @media (max-width: 560px) {
+    .pwa-guide { align-items: end; padding: 0; }
+    .pwa-guide-card { width: 100%; max-height: 88vh; border-radius: 8px 8px 0 0; padding: 18px; }
+    .pwa-guide-head h2 { font-size: 20px; }
+  }
+</style>
+
+<div class="pwa-guide" id="pwaInstallGuide" role="dialog" aria-modal="true" aria-labelledby="pwaGuideTitle" hidden>
+  <div class="pwa-guide-backdrop" data-pwa-close></div>
+  <section class="pwa-guide-card">
+    <header class="pwa-guide-head">
+      <h2 id="pwaGuideTitle">Instalar aplicativo</h2>
+      <button class="pwa-guide-close" type="button" data-pwa-close aria-label="Fechar">X</button>
+    </header>
+    <p class="pwa-guide-intro" id="pwaGuideIntro"></p>
+    <ol class="pwa-guide-steps" id="pwaGuideSteps"></ol>
+    <button class="pwa-guide-action" id="pwaGuideAction" type="button">Entendi</button>
+  </section>
+</div>
+
+<script>
+  (function () {
+    var installPrompt = null;
+    var installButton = document.getElementById("pwaInstallButton");
+    var guide = document.getElementById("pwaInstallGuide");
+    var guideTitle = document.getElementById("pwaGuideTitle");
+    var guideIntro = document.getElementById("pwaGuideIntro");
+    var guideSteps = document.getElementById("pwaGuideSteps");
+    var guideAction = document.getElementById("pwaGuideAction");
+    var ua = window.navigator.userAgent.toLowerCase();
+    var ipadDesktopMode = window.navigator.platform === "MacIntel" && window.navigator.maxTouchPoints > 1;
+    var ios = /iphone|ipad|ipod/.test(ua) || ipadDesktopMode;
+    var android = /android/.test(ua);
+    var firefox = /firefox|fxios/.test(ua);
+    var edge = /edg|edgios|edga/.test(ua);
+    var chrome = /chrome|crios/.test(ua) && !edge;
+    var safari = /safari/.test(ua) && !chrome && !edge && !firefox;
+    var windows = /windows/.test(ua);
+    var mac = /macintosh|mac os x/.test(ua) && !ios;
+    var standalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+    var lastFocused = null;
+    var installPromptWaiters = [];
+
+    function setButtonLabel(label) {
+      if (!installButton) return;
+      var arrow = installButton.querySelector("span");
+      installButton.textContent = label;
+      if (arrow) installButton.appendChild(arrow);
+    }
+
+    function setButtonBusy(busy, label) {
+      if (!installButton) return;
+      installButton.disabled = !!busy;
+      if (label) setButtonLabel(label);
+    }
+
+    function closeGuide() {
+      if (!guide) return;
+      guide.hidden = true;
+      document.documentElement.style.overflow = "";
+      if (lastFocused) lastFocused.focus();
+    }
+
+    function showGuide(title, intro, steps, actionLabel, action) {
+      if (!guide) return;
+      lastFocused = document.activeElement;
+      guideTitle.textContent = title;
+      guideIntro.textContent = intro;
+      guideSteps.replaceChildren();
+      steps.forEach(function (text, index) {
+        var item = document.createElement("li");
+        var number = document.createElement("span");
+        var description = document.createElement("span");
+        number.className = "pwa-guide-step-number";
+        number.textContent = String(index + 1);
+        description.textContent = text;
+        item.append(number, description);
+        guideSteps.appendChild(item);
+      });
+      guideAction.textContent = actionLabel || "Entendi";
+      guideAction.onclick = action || closeGuide;
+      guide.hidden = false;
+      document.documentElement.style.overflow = "hidden";
+      guideAction.focus();
+    }
+
+    function iosGuide() {
+      showGuide(
+        "Finalize no iPhone ou iPad",
+        "A Apple exige estas confirmações para colocar o aplicativo na Tela de Início.",
+        ["No menu Compartilhar, toque em Adicionar à Tela de Início.", "Ative Abrir como App da Web.", "Toque em Adicionar."],
+        "Entendi"
+      );
+    }
+
+    async function installOnIos() {
+      if (window.navigator.share) {
+        try {
+          await window.navigator.share({ title: "Gestão CD", text: "Instalar Gestão CD", url: window.location.origin + "/" });
+          window.setTimeout(iosGuide, 250);
+          return;
+        } catch (error) {
+          if (error && error.name === "AbortError") return;
+        }
+      }
+      iosGuide();
+    }
+
+    function manualGuide() {
+      if (firefox && android) {
+        showGuide("Instalar no Firefox", "O Firefox faz a instalação pelo próprio menu.", ["Abra o menu do Firefox.", "Toque em Instalar ou Adicionar à tela inicial.", "Confirme a instalação."]);
+        return;
+      }
+      if (firefox && windows) {
+        showGuide("Instalar no Firefox", "No Firefox para Windows, a instalação é feita pela barra de endereço.", ["Procure o ícone de aplicativo à direita do endereço.", "Clique no ícone e confirme.", "Se o ícone não aparecer, atualize o Firefox ou use Edge/Chrome."]);
+        return;
+      }
+      if (safari && mac) {
+        showGuide("Instalar no Mac", "O Safari adiciona o sistema diretamente ao Dock.", ["Abra o menu Arquivo.", "Clique em Adicionar ao Dock.", "Confirme em Adicionar."]);
+        return;
+      }
+      if (android) {
+        showGuide("Instalar no Android", "A instalação é feita pelo menu do navegador quando o Chrome ainda não liberou o botão automático.", ["Abra o menu de três pontos.", "Toque em Instalar aplicativo. Se aparecer somente Adicionar à tela inicial, remova o atalho antigo e tente novamente após atualizar a página.", "Confirme em Instalar."]);
+        return;
+      }
+      showGuide("Instalar no computador", "Use a opção de aplicativo do navegador.", ["Procure o ícone de instalação na barra de endereço.", "Ou abra o menu do navegador e escolha Instalar aplicativo.", "Confirme a instalação."]);
+    }
+
+    function waitForInstallPrompt(timeoutMs) {
+      if (installPrompt) return Promise.resolve(installPrompt);
+      return new Promise(function (resolve) {
+        var settled = false;
+        var timer = window.setTimeout(function () {
+          if (settled) return;
+          settled = true;
+          resolve(null);
+        }, timeoutMs || 1200);
+        installPromptWaiters.push(function (event) {
+          if (settled) return;
+          settled = true;
+          window.clearTimeout(timer);
+          resolve(event);
+        });
+      });
+    }
+
+    async function waitForPwaReadiness() {
+      if (!("serviceWorker" in window.navigator)) return;
+      try {
+        await window.navigator.serviceWorker.ready;
+      } catch (error) {}
+    }
+
+    async function requestInstall() {
+      if (!installPrompt && chrome && !ios) {
+        setButtonBusy(true, "Preparando instalação...");
+        await waitForPwaReadiness();
+        await waitForInstallPrompt(1600);
+        setButtonBusy(false, "Instalar aplicativo");
+      }
+      if (installPrompt) {
+        installPrompt.prompt();
+        var choice = await installPrompt.userChoice;
+        installPrompt = null;
+        if (choice && choice.outcome === "accepted") {
+          if (installButton) installButton.hidden = true;
+        } else if (installButton) {
+          installButton.hidden = false;
+        }
+        return;
+      }
+      if (ios) {
+        await installOnIos();
+        return;
+      }
+      manualGuide();
+    }
+
+    if (installButton) {
+      installButton.hidden = standalone;
+      if (ios) setButtonLabel("Adicionar à Tela de Início");
+      else if (firefox || (safari && mac)) setButtonLabel("Como instalar");
+      else setButtonLabel("Instalar aplicativo");
+      installButton.addEventListener("click", requestInstall);
+    }
+
+    document.querySelectorAll("[data-pwa-close]").forEach(function (button) {
+      button.addEventListener("click", closeGuide);
+    });
+    document.addEventListener("keydown", function (event) {
+      if (event.key === "Escape" && guide && !guide.hidden) closeGuide();
+    });
+
+    window.addEventListener("beforeinstallprompt", function (event) {
+      event.preventDefault();
+      installPrompt = event;
+      if (installButton && !standalone) installButton.hidden = false;
+      installPromptWaiters.splice(0).forEach(function (resolve) { resolve(event); });
+    });
+
+    window.addEventListener("appinstalled", function () {
+      if (installButton) installButton.hidden = true;
+      closeGuide();
+    });
+
+    if ("serviceWorker" in window.navigator) {
+      window.addEventListener("load", function () {
+        window.navigator.serviceWorker.register("/service-worker.js", { scope: "/" }).then(function (registration) {
+          window.setInterval(function () { registration.update(); }, 60 * 60 * 1000);
+        }).catch(function () {});
+      });
+    }
+  })();
+</script>

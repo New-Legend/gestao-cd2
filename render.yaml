@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: gestao-cd-2
+    runtime: python
+    plan: free
+    rootDir: .
+    buildCommand: "pip install -r requirements.txt && python manage.py collectstatic --noinput --clear"
+    startCommand: "python manage.py migrate --noinput && python manage.py ensure_master && gunicorn assistente_krill_web.wsgi:application --workers 2 --threads 4 --timeout 120"
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.14.6"
+      - key: DEBUG
+        value: "False"
+      - key: RENDER
+        value: "True"
+      - key: ALLOWED_HOSTS
+        value: ".onrender.com"
+      - key: CSRF_TRUSTED_ORIGINS
+        value: "https://*.onrender.com"
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: MODELO_TESTE_MASTER_PASSWORD
+        sync: false
+      - key: PUBLIC_APP_URL
+        value: "https://gestao-cd-2.onrender.com"
+      - key: DATABASE_URL
+        sync: false

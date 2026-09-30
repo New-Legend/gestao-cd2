@@ -1,0 +1,90 @@
+{% extends "painel/base.html" %}
+
+{% block title %}Recursos do sistema - Gestão CD{% endblock %}
+{% block page_title %}Recursos do sistema{% endblock %}
+
+{% block content %}
+  <section class="panel fusao-admin-panel">
+    <div class="panel-title">
+      <div>
+        <h2>Módulos opcionais</h2>
+        <p>Ligue somente o que estiver em teste ou em uso. Quando um recurso é desligado, suas permissões somem da Gestão de acesso e a tela deixa de abrir.</p>
+      </div>
+    </div>
+    <div class="grid fusao-card-grid">
+      {% for feature in features %}
+        <article class="card fusao-metric-card">
+          <span>{{ feature.title }}</span>
+          <strong>{% if feature.enabled %}Habilitado{% else %}Desabilitado{% endif %}</strong>
+          <p class="muted">{{ feature.description }}</p>
+          <details class="optional-panel" style="margin:12px 0">
+            <summary>Permissões deste recurso</summary>
+            <div class="optional-panel-content">
+              <div class="check-grid">
+                {% for _perm,label in feature.permissions %}
+                  <span class="status-pill">{{ label }}</span>
+                {% endfor %}
+              </div>
+            </div>
+          </details>
+          <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="feature" value="{{ feature.key }}">
+            <label class="check-line">
+              <input type="checkbox" name="enabled" {% if feature.enabled %}checked{% endif %}>
+              Manter recurso ligado
+            </label>
+            <button class="btn" type="submit">Salvar recurso</button>
+          </form>
+        </article>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="panel fusao-admin-panel">
+    <div class="panel-title">
+      <div>
+        <h2>Regras operacionais</h2>
+        <p>Use estas opções para ajustar como o sistema se comporta na rotina, sem esconder telas ou permissões.</p>
+      </div>
+    </div>
+    <div class="alert-box" style="margin-bottom:14px">
+      Para pausar o piloto, mantenha <strong>Suspender uso operacional</strong> ligado. Usuários comuns ficam bloqueados; o master continua acessando para consultar dados e destravar depois.
+    </div>
+    <div class="grid fusao-card-grid">
+      {% for rule in system_rules %}
+        <article class="card fusao-metric-card">
+          <span>{{ rule.title }}</span>
+          <strong>{% if rule.enabled %}Habilitada{% else %}Desabilitada{% endif %}</strong>
+          <p class="muted">{{ rule.description }}</p>
+          <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="rule" value="{{ rule.key }}">
+            <label class="check-line">
+              <input type="checkbox" name="enabled" {% if rule.enabled %}checked{% endif %}>
+              Manter regra ligada
+            </label>
+            <button class="btn" type="submit">Salvar regra</button>
+          </form>
+        </article>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="panel fusao-admin-panel">
+    <div class="panel-title">
+      <div>
+        <h2>Notificações push</h2>
+        <p>As notificações internas funcionam sempre. Para notificar celular bloqueado, o sistema usa chaves Web Push geradas automaticamente ou configuradas no Render.</p>
+      </div>
+      <span class="status-pill {% if webpush_enabled %}ok{% endif %}">{% if webpush_enabled %}Web Push ativo{% else %}Web Push pendente{% endif %}</span>
+    </div>
+    {% if webpush_missing %}
+      <div class="alert-box">
+        Web Push ainda não ativou neste ambiente. Se não ativar após o deploy, rode <strong>python manage.py gerar_chaves_webpush</strong> ou configure as variáveis VAPID no Render.
+      </div>
+    {% else %}
+      <p class="muted">Chave pública carregada. Os usuários poderão ativar notificações no sino do sistema.</p>
+    {% endif %}
+  </section>
+{% endblock %}

@@ -1,0 +1,53 @@
+{% extends "painel/base.html" %}
+{% block title %}Meu perfil{% endblock %}
+{% block page_title %}Meu perfil{% endblock %}
+{% block content %}
+  <section class="panel fusao-admin-panel">
+    <div class="panel-title">
+      <div>
+        <h2>Informações do usuário</h2>
+        <p>Atualize seu nome e, se precisar, troque sua senha.</p>
+      </div>
+    </div>
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-grid">
+        <div>
+          <label for="{{ form.nome.id_for_label }}">{{ form.nome.label }}</label>
+          {{ form.nome }}
+          {% if form.nome.errors %}<div class="muted">{{ form.nome.errors }}</div>{% endif %}
+        </div>
+        <div>
+          <label for="{{ form.sobrenome.id_for_label }}">{{ form.sobrenome.label }}</label>
+          {{ form.sobrenome }}
+          {% if form.sobrenome.errors %}<div class="muted">{{ form.sobrenome.errors }}</div>{% endif %}
+        </div>
+      </div>
+      <hr style="border:0;border-top:1px solid #d7e0eb;margin:18px 0">
+      <div class="panel-title">
+        <div>
+          <h2>Trocar senha</h2>
+          <p>Preencha apenas se quiser alterar a senha.</p>
+        </div>
+      </div>
+      <div class="form-grid">
+        <div>
+          <label for="{{ form.senha_atual.id_for_label }}">{{ form.senha_atual.label }}</label>
+          {{ form.senha_atual }}
+          {% if form.senha_atual.errors %}<div class="muted">{{ form.senha_atual.errors }}</div>{% endif %}
+        </div>
+        <div>
+          <label for="{{ form.nova_senha.id_for_label }}">{{ form.nova_senha.label }}</label>
+          {{ form.nova_senha }}
+          {% if form.nova_senha.errors %}<div class="muted">{{ form.nova_senha.errors }}</div>{% endif %}
+        </div>
+        <div>
+          <label for="{{ form.confirmar_senha.id_for_label }}">{{ form.confirmar_senha.label }}</label>
+          {{ form.confirmar_senha }}
+          {% if form.confirmar_senha.errors %}<div class="muted">{{ form.confirmar_senha.errors }}</div>{% endif %}
+        </div>
+      </div>
+      <div style="margin-top:16px"><button class="btn" type="submit">Salvar perfil</button></div>
+    </form>
+  </section>
+{% endblock %}

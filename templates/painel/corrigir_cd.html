@@ -1,0 +1,50 @@
+{% extends "painel/base.html" %}
+{% block title %}Corrigir CD{% endblock %}
+{% block page_title %}Corrigir CD de registros{% endblock %}
+{% block content %}
+  <section class="panel fusao-admin-panel">
+    <div class="panel-title">
+      <div>
+        <h2>Transferir registros digitados no CD errado</h2>
+        <p>Use primeiro sem marcar aplicar para conferir a prévia.</p>
+      </div>
+    </div>
+    <form method="post" class="form-grid">
+      {% csrf_token %}
+      <div>
+        <label>Origem</label>
+        <select class="field" name="origem"><option value="806">806</option><option value="801">801</option></select>
+      </div>
+      <div>
+        <label>Destino</label>
+        <select class="field" name="destino"><option value="801">801</option><option value="806">806</option></select>
+      </div>
+      <div>
+        <label>Início</label>
+        <input class="field" type="date" name="inicio">
+      </div>
+      <div>
+        <label>Fim</label>
+        <input class="field" type="date" name="fim">
+      </div>
+      <div>
+        <label>Aplicar mudança</label>
+        <input class="field-check" type="checkbox" name="aplicar" value="1">
+      </div>
+      <div style="display:flex;align-items:end"><button class="btn" type="submit">Conferir / aplicar</button></div>
+    </form>
+  </section>
+  {% if preview %}
+    <section class="panel fusao-admin-panel">
+      <h2>Prévia</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Módulo</th><th>Registros</th></tr></thead>
+          <tbody>
+            {% for title, count in preview %}<tr><td>{{ title }}</td><td>{{ count }}</td></tr>{% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  {% endif %}
+{% endblock %}

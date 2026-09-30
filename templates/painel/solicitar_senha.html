@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  {% include "painel/_pwa_head.html" %}
+  <title>Gestão CD — Esqueci minha senha</title>
+  <style>
+    :root { --blue:#073b73; --blue2:#061d37; --yellow:#ffd21f; --red:#d71920; --line:#d7e0eb; --muted:#627084; }
+    * { box-sizing: border-box; }
+    html { -webkit-text-size-adjust:100%; text-size-adjust:100%; }
+    body {
+      margin:0; min-height:100vh; min-height:100dvh; display:grid; place-items:center; padding:24px;
+      font-family:"Segoe UI", Arial, sans-serif;
+      background: radial-gradient(1200px 500px at 10% -10%, rgba(255,210,31,.22), transparent 55%),
+                  linear-gradient(145deg, var(--blue2) 0%, var(--blue) 58%, #0a4a8a 100%);
+      overflow-x:hidden;
+    }
+    .card {
+      width:min(440px,100%); background:#fff; border-radius:14px; padding:28px;
+      border-top:6px solid var(--yellow); box-shadow:0 28px 90px rgba(6,29,55,.35);
+    }
+    .mark {
+      width:72px; height:72px; border-radius:16px; display:grid; place-items:center;
+      background:var(--blue2); color:var(--yellow); border:2px solid var(--yellow);
+      font-weight:900; font-size:22px; margin:0 0 18px;
+    }
+    .brand-sub { margin:0 0 8px; color:var(--blue); font-weight:800; font-size:13px; text-transform:uppercase; letter-spacing:.04em; }
+    h1 { margin:0 0 6px; color:var(--blue2); }
+    p { margin:0 0 20px; color:var(--muted); }
+    label { display:block; font-weight:800; margin:12px 0 6px; color:#243247; }
+    input, select, textarea {
+      width:100%; min-height:44px; border:1px solid var(--line); border-radius:8px; padding:10px 12px; font:inherit;
+    }
+    textarea { resize:vertical; }
+    input:focus, select:focus, textarea:focus { outline:2px solid rgba(7,59,115,.35); border-color:var(--blue); }
+    button {
+      width:100%; margin-top:18px; border:0; border-radius:8px; min-height:44px;
+      background:var(--blue); color:#fff; font-weight:900; cursor:pointer; touch-action:manipulation;
+    }
+    button:hover { background:var(--blue2); }
+    .back { display:block; margin-top:14px; text-align:center; color:var(--blue); font-weight:800; text-decoration:none; }
+    .back:hover { text-decoration:underline; }
+    .errorlist { color:#a01419; font-weight:700; margin:8px 0 0; padding-left:18px; }
+    .grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .full { grid-column:1 / -1; }
+    @media (max-width:620px) {
+      body { place-items:start center; padding:18px 12px; }
+      .card { margin-top:10px; padding:22px; }
+      .grid { grid-template-columns:1fr; }
+      input, select, textarea, button { min-height:48px; font-size:16px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <div class="mark" aria-hidden="true">CD</div>
+    <p class="brand-sub">Operação logística</p>
+        <h1>Esqueci minha senha</h1>
+    <p>Informe seu login. O pedido aparece para o master redefinir sua senha.</p>
+    <form method="post">
+      {% csrf_token %}
+      {{ form.non_field_errors }}
+      <label for="{{ form.login.id_for_label }}">{{ form.login.label }}</label>
+      {{ form.login }}
+      {{ form.login.errors }}
+      <button type="submit">Enviar pedido</button>
+    </form>
+    <a class="back" href="{% url 'login' %}">Voltar para o login</a>
+  </main>
+  {% include "painel/_pwa_register.html" %}
+</body>
+</html>

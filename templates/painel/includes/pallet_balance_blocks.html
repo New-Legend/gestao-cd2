@@ -1,0 +1,37 @@
+{% load painel_extras %}
+<div class="pallet-balance-blocks fusao-pallet-blocks {% if cds|length > 1 %}is-unified{% endif %}">
+  {% for cd_item in cds %}
+    {% with value=row.cds|get_item:cd_item %}
+      <article class="pallet-balance-block cd-{{ cd_item }} {% if value.livre %}has-balance{% endif %}" data-pallet-balance-block data-cd="{{ cd_item }}">
+        <div class="pallet-balance-head">
+          <span>CD {{ cd_item }}</span>
+          <strong data-pallet-balance-value="livre">{{ value.livre|default:0 }}</strong>
+          <small>livre agora</small>
+        </div>
+        <div class="pallet-balance-metrics">
+          <span><em>Saldo atual</em><strong data-pallet-balance-value="qtd">{{ value.qtd|default:0 }}</strong></span>
+          <span><em>Reservado</em><strong data-pallet-balance-value="reservado">{{ value.vinculado|default:0 }}</strong></span>
+          {% if show_expedido %}
+            <span><em>Expedido</em><strong data-pallet-balance-value="expedido">{{ value.expedido|default:0 }}</strong></span>
+          {% endif %}
+        </div>
+        {% if show_zero_action and can_manage_pallet_balance and value.qtd %}
+          <form method="post" class="pallet-zero-form" data-preserve-scroll="pallet-balance" onsubmit="return confirm('Zerar o saldo da loja {{ row.loja }} no CD {{ cd_item }}? Use somente se a carga já saiu fisicamente ou o saldo está incorreto.');">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="zerar_planejamento_expedicao">
+            <input type="hidden" name="loja" value="{{ row.loja }}">
+            <input type="hidden" name="cd_alvo" value="{{ cd_item }}">
+            <button class="btn small secondary" type="submit">Zerar saldo CD {{ cd_item }}</button>
+          </form>
+        {% endif %}
+      </article>
+    {% endwith %}
+  {% endfor %}
+</div>
+{% if show_total_line %}
+  <div class="pallet-balance-total">
+    <span>Total livre <strong>{{ row.total_livre|default:0 }}</strong></span>
+    <span>Reservado <strong>{{ row.total_vinculado|default:0 }}</strong></span>
+    <span>Saldo atual <strong>{{ row.total|default:0 }}</strong></span>
+  </div>
+{% endif %}

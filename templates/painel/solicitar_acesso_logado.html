@@ -1,0 +1,30 @@
+{% extends "painel/base.html" %}
+{% block title %}Solicitar acesso{% endblock %}
+{% block page_title %}Solicitar acesso{% endblock %}
+{% block content %}
+  <section class="panel fusao-admin-panel">
+    <div class="panel-title">
+      <div>
+        <h2>Novo pedido de acesso</h2>
+        <p>Solicite novo login, reativação ou ajuste de acesso. Seu usuário ficará registrado automaticamente no pedido.</p>
+      </div>
+    </div>
+    <form method="post">
+      {% csrf_token %}
+      {{ form.non_field_errors }}
+      <div class="form-grid">
+        {% for field in form %}
+          <div class="form-field {% if field.name == 'justificativa' %}wide{% endif %}">
+            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            {% if field.errors %}<div class="muted">{{ field.errors }}</div>{% endif %}
+          </div>
+        {% endfor %}
+      </div>
+      <div style="margin-top:16px">
+        <button class="btn" type="submit">Enviar pedido</button>
+        <a class="btn secondary" href="{% url 'minhas_solicitacoes' %}">Ver minhas solicitações</a>
+      </div>
+    </form>
+  </section>
+{% endblock %}

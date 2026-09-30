@@ -1,0 +1,32 @@
+{% extends "painel/base.html" %}
+{% block title %}Editar {{ module.title }} - Gestão CD{% endblock %}
+{% block page_title %}Editar {{ module.title }}{% endblock %}
+{% block content %}
+  <section class="panel fusao-module-form-panel">
+    <div class="panel-title">
+      <div>
+        <h2>Alterar registro</h2>
+        <p>{{ obj }}</p>
+        <p class="muted">Este registro fica reservado para você por alguns minutos enquanto estiver editando.</p>
+      </div>
+      <a class="btn secondary" href="{% url 'module_list' module.key %}">Voltar</a>
+    </div>
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-grid">
+        {% for field in form %}
+          <div>
+            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            {% if field.help_text %}<small class="muted">{{ field.help_text }}</small>{% endif %}
+            {% if field.errors %}<div class="muted">{{ field.errors }}</div>{% endif %}
+          </div>
+        {% endfor %}
+      </div>
+      <div class="fusao-module-form-actions">
+        <button class="btn" type="submit">Salvar alteração</button>
+        <a class="btn secondary" href="{% url 'module_list' module.key %}">Cancelar</a>
+      </div>
+    </form>
+  </section>
+{% endblock %}

@@ -1,0 +1,22 @@
+{% extends "painel/base.html" %}
+{% block title %}Minha tela - Gestão CD{% endblock %}
+{% block page_title %}Minha tela{% endblock %}
+{% block content %}
+  <section class="panel fusao-admin-panel">
+    <div class="panel-title">
+      <div>
+        <h2>Ocultar abas que você não quer ver</h2>
+        <p>Isso muda apenas a organização visual da sua tela.</p>
+      </div>
+    </div>
+    <form method="post">
+      {% csrf_token %}
+      <div class="check-grid">
+        {% for checkbox in form.abas_ocultas %}
+          <label>{{ checkbox.tag }} {{ checkbox.choice_label }}</label>
+        {% endfor %}
+      </div>
+      <div style="margin-top:16px"><button class="btn" type="submit">Salvar minha tela</button></div>
+    </form>
+  </section>
+{% endblock %}

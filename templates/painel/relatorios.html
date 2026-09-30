@@ -1,0 +1,626 @@
+{% extends "painel/base.html" %}
+{% block title %}{{ ui_labels.relatorios }} - Gestão CD{% endblock %}
+{% block page_title %}{{ ui_labels.relatorios }} e dashboards{% endblock %}
+{% block content %}
+  <style>
+    .report-board { background:linear-gradient(160deg,#061d37 0%,#073b73 72%,#0a4a8a 100%); color:#f7fbfb; border-radius:12px; padding:18px; margin:16px 0; border-top:4px solid #ffd21f; box-shadow:0 18px 40px rgba(6,29,55,.22); }
+    .report-board h2,.report-board h3 { color:#fff; margin:0; }
+    .report-board .muted { color:#cfe4ff; }
+    .board-line { height:6px; background:linear-gradient(90deg,#ffd21f,#073b73,#d71920); margin:14px -18px 16px; }
+    .board-cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:10px; margin-bottom:16px; }
+    .board-card { background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12); border-radius:10px; padding:12px 14px; min-height:72px; }
+    .board-card span { display:block; color:#cfe4ff; font-weight:700; }
+    .board-card strong { display:block; font-size:28px; line-height:1.1; margin-top:4px; color:#fff; }
+    .board-grid { display:grid; grid-template-columns:minmax(0,1.45fr) minmax(280px,.8fr); gap:14px; }
+    .board-panel { background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12); border-radius:10px; padding:14px; overflow:hidden; }
+    .board-table { width:100%; border-collapse:collapse; color:#f7fbfb; }
+    .board-table th,.board-table td { padding:8px 6px; border-bottom:1px solid rgba(255,255,255,.08); text-align:left; }
+    .board-table th { color:#fff; font-size:12px; text-transform:uppercase; }
+    .bar-list { display:flex; align-items:end; gap:10px; min-height:220px; padding:12px 4px 0; overflow-x:auto; }
+    .bar-item { min-width:78px; display:flex; flex-direction:column; align-items:center; justify-content:end; gap:7px; height:210px; }
+    .bar-value { font-size:12px; font-weight:800; color:#fff; }
+    .bar { width:44px; min-height:2px; background:#ffd21f; border-radius:3px 3px 0 0; }
+    .bar.blue { background:#7eb6ff; }
+    .donut { width:180px; height:180px; border-radius:50%; margin:20px auto; background:conic-gradient(#073b73 0 48%,#ffd21f 48% 62%,#7eb6ff 62% 74%,#d71920 74% 85%,#cfe4ff 85% 100%); position:relative; }
+    .donut:after { content:""; position:absolute; inset:45px; border-radius:50%; background:#073b73; }
+    .bar-label { color:#dbe7e7; font-size:11px; white-space:nowrap; max-width:90px; overflow:hidden; text-overflow:ellipsis; }
+    .big-number { font-size:78px; line-height:1; text-align:center; margin:34px 0; }
+    .side-metrics { display:grid; gap:10px; }
+    .side-metrics div { background:#132626; border-radius:8px; padding:12px; display:flex; justify-content:space-between; gap:10px; }
+    .side-metrics strong { font-size:24px; }
+    @media (max-width:900px) { .board-grid { grid-template-columns:1fr; } .report-board { padding:14px; } .board-line { margin-left:-14px; margin-right:-14px; } }
+    @media (max-width:760px) {
+      .report-board { margin:10px -4px; padding:12px; border-radius:8px; }
+      .report-board h2 { font-size:22px; line-height:1.12; }
+      .report-board h3 { font-size:16px; line-height:1.18; }
+      .board-line { height:4px; margin:10px -12px 12px; }
+      .board-cards { grid-template-columns:repeat(auto-fit,minmax(142px,1fr)); gap:8px; margin-bottom:10px; }
+      .board-card { min-height:64px; padding:10px; }
+      .board-card span { font-size:11px; line-height:1.2; }
+      .board-card strong { font-size:21px; }
+      .board-grid { grid-template-columns:1fr !important; gap:10px; }
+      .board-panel { padding:10px; border-radius:8px; overflow:auto; }
+      .bar-list { min-height:150px; gap:8px; padding-top:8px; }
+      .bar-item { min-width:52px; height:150px; gap:5px; }
+      .bar { width:30px; }
+      .bar-label { max-width:62px; font-size:10px; }
+      .big-number { font-size:48px; margin:18px 0; }
+      .donut { width:132px; height:132px; margin:14px auto; }
+      .donut:after { inset:34px; }
+      .side-metrics { gap:8px; }
+      .side-metrics div { padding:9px; align-items:center; }
+      .side-metrics strong { font-size:19px; }
+      .report-controls form .btn { width:100%; }
+    }
+    @media (max-width:1180px) and (max-height:640px) and (orientation:landscape) {
+      .report-board { margin:8px 0; padding:10px; }
+      .report-board h2 { font-size:20px; }
+      .board-line { height:4px; margin:8px -10px 10px; }
+      .board-cards { grid-template-columns:repeat(auto-fit,minmax(132px,1fr)); gap:7px; margin-bottom:10px; }
+      .board-card { min-height:58px; padding:8px; }
+      .board-card strong { font-size:20px; }
+      .board-grid { grid-template-columns:minmax(0,1fr) minmax(220px,.75fr); gap:9px; }
+      .board-panel { padding:9px; }
+      .bar-list { min-height:140px; }
+      .bar-item { min-width:48px; height:136px; }
+      .bar { width:28px; }
+      .big-number { font-size:44px; margin:16px 0; }
+      .donut { width:124px; height:124px; margin:10px auto; }
+      .donut:after { inset:32px; }
+    }
+    @media print { .panel:first-of-type,.actions,.btn { display:none !important; } .report-board { break-inside:avoid; box-shadow:none; } }
+  </style>
+  {% if modo_painel %}
+    <style>
+      body { background:#04111f; }
+      .sidebar,.topbar,.report-controls,.grid.cards,.report-support,.messages { display:none !important; }
+      .report-board ~ section.panel,.report-board ~ .two-col { display:none !important; }
+      .app-shell { display:block; min-height:100vh; }
+      .main { min-height:100vh; }
+      .content { width:100%; margin:0; padding:0; }
+      .report-board { min-height:100vh; margin:0; border-radius:0; box-shadow:none; padding:26px 34px; }
+      .report-board + .report-board { margin-top:0; border-top:10px solid #04111f; }
+      .board-grid { grid-template-columns:minmax(0,1.55fr) minmax(330px,.75fr); }
+      .board-panel { min-height:180px; }
+      .bar-list { min-height:260px; }
+      .bar-item { height:245px; }
+      .side-metrics div { min-height:64px; align-items:center; }
+      @media print {
+        body { background:#04111f; }
+        .report-board { min-height:100vh; page-break-after:always; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+      }
+    </style>
+  {% endif %}
+  <section class="panel report-controls fusao-report-panel">
+    <div class="panel-title">
+      <div>
+        <h2>Relatório gerencial</h2>
+        <p>Gere o fechamento completo ou separado por área do {{ cd_unidade_label }}. O checklist é apenas conferência e não bloqueia a geração.</p>
+      </div>
+    </div>
+    <form method="get" class="form-grid">
+      <div>
+        <label>Início</label>
+        <input class="field" type="date" name="inicio" value="{{ inicio }}">
+      </div>
+      <div>
+        <label>Fim</label>
+        <input class="field" type="date" name="fim" value="{{ fim }}">
+      </div>
+      {% if modo_painel %}<input type="hidden" name="modo" value="painel">{% endif %}
+      <div>
+        <label>Tipo de relatório</label>
+        <select class="field" name="tipo">
+          {% for key, label in report_types %}
+            <option value="{{ key }}" {% if tipo == key %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div style="display:flex;gap:8px;align-items:end;flex-wrap:wrap">
+        <button class="btn" type="submit">Gerar na tela</button>
+        <a class="btn" href="{% url 'relatorios' %}?inicio={{ inicio }}&fim={{ fim }}&tipo={{ tipo }}&modo=painel">Abrir painel visual</a>
+        <button class="btn secondary" type="submit" name="exportar" value="xlsx">Baixar Excel</button>
+        <button class="btn secondary" type="submit" name="exportar" value="csv">Baixar CSV</button>
+        <button class="btn secondary" type="submit" name="exportar" value="powerbi">Gerar base Power BI</button>
+        <button class="btn secondary" type="button" onclick="window.print()">Imprimir/PDF</button>
+      </div>
+    </form>
+    <div class="actions" style="margin-top:14px">
+      {% for key, label in report_types %}
+        <a class="btn small {% if tipo != key %}secondary{% endif %}" href="{% url 'relatorios' %}?inicio={{ inicio }}&fim={{ fim }}&tipo={{ key }}">{{ label }}</a>
+      {% endfor %}
+    </div>
+  </section>
+
+  {% if mostrar_gestao %}
+    <section class="report-board">
+      <h2>Gestão 360</h2>
+      <span class="muted">Risco operacional, qualidade dos dados, gargalos e roteiro de evolução</span>
+      <div class="board-line"></div>
+      <div class="board-cards">
+        {% for card in gestao_360.cards %}
+          <div class="board-card"><span>{{ card.label }}</span><strong>{{ card.value }}</strong></div>
+        {% endfor %}
+      </div>
+      <div class="board-grid">
+        <div class="board-panel">
+          <h3>Gargalos por setor</h3>
+          <table class="board-table">
+            <thead><tr><th>Setor</th><th>Pend.</th><th>Ocor.</th><th>Pessoas</th><th>Div.</th></tr></thead>
+            <tbody>
+              {% for row in gestao_360.setores %}
+                <tr><td>{{ row.setor }}</td><td>{{ row.pendencias }}</td><td>{{ row.ocorrencias }}</td><td>{{ row.pessoas_faltando }}</td><td>{{ row.divergencias }}</td></tr>
+              {% empty %}
+                <tr><td colspan="5">Nenhum gargalo relevante.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <div class="board-panel">
+          <h3>Qualidade dos dados</h3>
+          <div class="big-number">{{ gestao_360.qualidade.score }}%</div>
+          <table class="board-table">
+            <thead><tr><th>Área</th><th>Problemas</th></tr></thead>
+            <tbody>
+              {% for row in gestao_360.qualidade.checks %}
+                <tr><td>{{ row.area }}</td><td>{{ row.valor }}</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="board-panel" style="margin-top:14px">
+        <h3>Inovações sugeridas</h3>
+        <table class="board-table">
+          <thead><tr><th>Prioridade</th><th>Tema</th><th>Ganho</th></tr></thead>
+          <tbody>
+            {% for row in gestao_360.inovacoes %}
+              <tr><td>{{ row.prioridade }}</td><td>{{ row.tema }}</td><td>{{ row.ganho }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  {% endif %}
+
+  {% if mostrar_visual_recebimento %}
+    <section class="report-board">
+      <h2>Recebimento</h2>
+      <span class="muted">Visão geral do período selecionado</span>
+      <div class="board-line"></div>
+      <div class="board-grid">
+        <div class="board-panel">
+          <h3>Índice de Eficiência na Conferência</h3>
+          <table class="board-table">
+            <thead><tr><th>Conferente</th><th>Paletes</th><th>Minutos</th><th>Palete/min</th></tr></thead>
+            <tbody>
+              {% for row in visual_recebimento.eficiencia %}
+                <tr><td>{{ row.conferente }}</td><td>{{ row.paletes }}</td><td>{{ row.minutos }}</td><td>{{ row.palete_minuto }}</td></tr>
+              {% empty %}
+                <tr><td colspan="4">Sem dados de conferente no período.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <div class="board-panel">
+          <h3>Recebido sem Agendamento</h3>
+          <div class="big-number">{{ visual_recebimento.cards.sem_agendamento }}</div>
+          <div class="side-metrics">
+            <div><span>Total agendado</span><strong>{{ visual_recebimento.cards.total_agendado }}</strong></div>
+            <div><span>Entrada - Recebimento</span><strong>{{ visual_recebimento.cards.entrada_recebimento }}</strong></div>
+            <div><span>Paletes Recebidos</span><strong>{{ visual_recebimento.cards.paletes_recebidos }}</strong></div>
+            <div><span>Pix</span><strong>R$ {{ visual_recebimento.cards.pix }}</strong></div>
+            <div><span>Cartao</span><strong>R$ {{ visual_recebimento.cards.cartao }}</strong></div>
+          </div>
+        </div>
+      </div>
+      <div class="board-panel" style="margin-top:14px">
+        <h3>Total de paletes por Período</h3>
+        <div class="bar-list">
+          {% for row in visual_recebimento.paletes_periodo %}
+            <div class="bar-item">
+              <span class="bar-value">{{ row.total }}</span>
+              <div class="bar" style="height:{{ row.percentual }}%"></div>
+              <span class="bar-label">{{ row.data|date:"d/m/Y" }}</span>
+            </div>
+          {% empty %}
+            <span class="muted">Sem paletes recebidos no período.</span>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+  {% endif %}
+
+  {% if mostrar_visual_demanda %}
+    <section class="report-board">
+      <h2>Ressuprimento Demanda</h2>
+      <div class="board-line"></div>
+      <div class="board-cards">
+        <div class="board-card"><span>Quantidade de Itens</span><strong>{{ visual_demanda.cards.qtd_itens }}</strong></div>
+        <div class="board-card"><span>Quantidade de Volume</span><strong>{{ visual_demanda.cards.qtd_volume }}</strong></div>
+        <div class="board-card"><span>Pendência de Itens</span><strong>{{ visual_demanda.cards.pendencia_itens }}</strong></div>
+        <div class="board-card"><span>Pendência de Volume</span><strong>{{ visual_demanda.cards.pendencia_volume }}</strong></div>
+      </div>
+      <div class="board-grid">
+        <div class="board-panel">
+          <h3>Quantidade Volume x Itens por setor</h3>
+          <div class="bar-list">
+            {% for row in visual_demanda.setores %}
+              <div class="bar-item">
+                <span class="bar-value">{{ row.qtd_volume }}</span>
+                <div class="bar" style="height:{{ row.percentual_volume }}%"></div>
+                <span class="bar-label">{{ row.label }}</span>
+              </div>
+            {% empty %}
+              <span class="muted">Sem demanda importada para o período.</span>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="board-panel">
+          <h3>% Itens por Setor</h3>
+          <div class="donut"></div>
+          <table class="board-table">
+            <thead><tr><th>Setor</th><th>Volume</th><th>Itens</th></tr></thead>
+            <tbody>
+              {% for row in visual_demanda.setores %}
+                <tr><td>{{ row.label }}</td><td>{{ row.qtd_volume }}</td><td>{{ row.qtd_itens }}</td></tr>
+              {% empty %}<tr><td colspan="3">Sem dados.</td></tr>{% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  {% endif %}
+
+  {% if mostrar_visual_ocupacao %}
+    <section class="report-board">
+      <h2>Ressuprimento - Ocupação</h2>
+      <div class="board-line"></div>
+      <div class="board-cards">
+        <div class="board-card"><span>Quantidade de Itens</span><strong>{{ visual_ocupacao.cards.qtd_itens }}</strong></div>
+        <div class="board-card"><span>Total Produzido</span><strong>{{ visual_ocupacao.cards.produzido }}</strong></div>
+        <div class="board-card"><span>Pendência de Itens</span><strong>{{ visual_ocupacao.cards.pendente }}</strong></div>
+        <div class="board-card"><span>% Produzido</span><strong>{{ visual_ocupacao.cards.percentual }}%</strong></div>
+      </div>
+      <div class="board-grid">
+        <div class="board-panel">
+          <h3>Quantidade Itens x Produzido por Rua</h3>
+          <div class="bar-list">
+            {% for row in visual_ocupacao.ruas %}
+              <div class="bar-item">
+                <span class="bar-value">{{ row.qtd_itens }}</span>
+                <div class="bar blue" style="height:{{ row.percentual_volume }}%"></div>
+                <span class="bar-label">{{ row.label }}</span>
+              </div>
+            {% empty %}<span class="muted">Sem ocupação importada para o período.</span>{% endfor %}
+          </div>
+        </div>
+        <div class="board-panel">
+          <h3>Ruas</h3>
+          <table class="board-table">
+            <thead><tr><th>Rua</th><th>% Produzido</th><th>Itens</th></tr></thead>
+            <tbody>
+              {% for row in visual_ocupacao.ruas %}
+                <tr><td>{{ row.label }}</td><td>{{ row.percentual_produzido }}%</td><td>{{ row.qtd_itens }}</td></tr>
+              {% empty %}<tr><td colspan="3">Sem dados.</td></tr>{% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  {% endif %}
+
+  {% if mostrar_visual_producao %}
+    <section class="report-board">
+      <h2>Ressuprimento - Produção</h2>
+      <div class="board-line"></div>
+      <div class="board-cards">
+        <div class="board-card"><span>Total Pendência</span><strong>{{ visual_producao.cards.pendencia }}</strong></div>
+        <div class="board-card"><span>Disponível</span><strong>{{ visual_producao.cards.disponivel }}</strong></div>
+        <div class="board-card"><span>Ressuprimento</span><strong>{{ visual_producao.cards.ressuprimento }}</strong></div>
+        <div class="board-card"><span>Simulação</span><strong>{{ visual_producao.cards.simulacao }}</strong></div>
+      </div>
+      <div class="board-grid">
+        <div>
+          <div class="board-panel">
+            <h3>Pendência por Setor</h3>
+            <div class="bar-list">
+              {% for row in visual_producao.setores %}
+                <div class="bar-item">
+                  <span class="bar-value">{{ row.qtd_volume }}</span>
+                  <div class="bar blue" style="height:{{ row.percentual_volume }}%"></div>
+                  <span class="bar-label">{{ row.label }}</span>
+                </div>
+              {% empty %}<span class="muted">Sem produção importada para o período.</span>{% endfor %}
+            </div>
+          </div>
+          <div class="board-panel" style="margin-top:14px">
+            <h3>Volume Gerado por Setor</h3>
+            <table class="board-table">
+              <thead><tr><th>Setor</th><th>Gerado</th><th>Picking</th><th>Pulmão</th><th>%</th></tr></thead>
+              <tbody>
+                {% for row in visual_producao.setores %}
+                  <tr><td>{{ row.label }}</td><td>{{ row.produzido_volume }}</td><td>{{ row.picking }}</td><td>{{ row.pulmao }}</td><td>{{ row.percentual_produzido }}%</td></tr>
+                {% empty %}<tr><td colspan="5">Sem dados.</td></tr>{% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="board-panel">
+          <h3>Produtividade</h3>
+          <div class="big-number">{{ visual_producao.produtividade.produtividade_picking }}</div>
+          <div class="side-metrics">
+            <div><span>Onda gerada</span><strong>{{ visual_producao.produtividade.onda_gerada }}</strong></div>
+            <div><span>Total a produzir</span><strong>{{ visual_producao.produtividade.total_a_produzir }}</strong></div>
+            <div><span>Crossdocking</span><strong>{{ visual_producao.produtividade.crossdocking }}</strong></div>
+            <div><span>Picking produzido</span><strong>{{ visual_producao.produtividade.picking }}</strong></div>
+            <div><span>Pulmão produzido</span><strong>{{ visual_producao.produtividade.pulmao }}</strong></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  {% endif %}
+
+  <section class="grid cards fusao-card-grid">
+    {% for label, value in resumo %}
+      <article class="card fusao-metric-card"><span>{{ label }}</span><strong>{{ value }}</strong></article>
+    {% endfor %}
+  </section>
+
+  <div class="two-col report-support" style="margin-top:16px">
+    <section class="panel fusao-report-panel">
+      <div class="panel-title">
+        <div>
+          <h2>Checklist de fechamento</h2>
+          <p>Baseado na data final selecionada.</p>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Status</th><th>Item</th><th>Detalhe</th></tr></thead>
+          <tbody>
+            {% for item in checklist %}
+              <tr>
+                <td>{% if item.ok %}<span class="status-pill ok">OK</span>{% else %}<span class="status-pill paused">Pendente</span>{% endif %}</td>
+                <td>{{ item.item }}</td>
+                <td>{{ item.detalhe }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel fusao-report-panel">
+      <div class="panel-title">
+        <div>
+          <h2>Alertas</h2>
+          <p>Pontos de atenção para acompanhar depois do fechamento.</p>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Área</th><th>Alerta</th></tr></thead>
+          <tbody>
+            {% for alerta in alertas %}
+              <tr><td><strong>{{ alerta.tipo }}</strong></td><td>{{ alerta.detalhe }}</td></tr>
+            {% empty %}
+              <tr><td colspan="2">Nenhum alerta importante no período.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  {% if mostrar_recebimento %}
+    <section class="panel fusao-report-panel">
+      <div class="panel-title">
+        <div>
+          <h2>Recebimento</h2>
+          <p>Fornecedores, pagamentos, agenda e detalhes de NFs.</p>
+        </div>
+      </div>
+      <div class="two-col">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Fornecedor</th><th>Paletes</th><th>Valor</th></tr></thead>
+            <tbody>
+              {% for item in recebimento_empresas %}
+                <tr><td>{{ item.fornecedor }}</td><td>{{ item.paletes_total|default:0 }}</td><td>R$ {{ item.valor_total|default:0 }}</td></tr>
+              {% empty %}
+                <tr><td colspan="3">Sem recebimentos no período.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Pagamento</th><th>Paletes</th><th>Valor</th></tr></thead>
+            <tbody>
+              {% for item in recebimento_pagamentos %}
+                <tr><td>{{ item.forma_pagamento_label|default:"Não informado" }}</td><td>{{ item.paletes_total|default:0 }}</td><td>R$ {{ item.valor_total|default:0 }}</td></tr>
+              {% empty %}
+                <tr><td colspan="3">Sem pagamentos registrados.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <h3>Agenda do período</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Data</th><th>Empresa</th><th>Tipo</th><th>Paletes</th><th>Agendado</th></tr></thead>
+          <tbody>
+            {% for item in agenda_periodo %}
+              <tr><td>{{ item.data|date:"d/m/Y" }}</td><td>{{ item.empresa }}</td><td>{{ item.tipo_caminhao }}</td><td>{{ item.paletes }}</td><td>{% if item.agendado %}Sim{% else %}Não{% endif %}</td></tr>
+            {% empty %}
+              <tr><td colspan="5">Sem agenda no período.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Agenda do dia seguinte ao fim</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Empresa</th><th>Tipo</th><th>Paletes</th><th>Obs.</th></tr></thead>
+          <tbody>
+            {% for item in agenda_amanha %}
+              <tr><td>{{ item.empresa }}</td><td>{{ item.tipo_caminhao }}</td><td>{{ item.paletes }}</td><td>{{ item.observacao }}</td></tr>
+            {% empty %}
+              <tr><td colspan="4">Nenhum veículo informado para o dia seguinte.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  {% endif %}
+
+  {% if mostrar_separacao %}
+    <section class="panel fusao-report-panel">
+      <div class="panel-title">
+        <div>
+          <h2>Separação</h2>
+          <p>Mercearia líquida por categoria e por loja.</p>
+        </div>
+      </div>
+      <div class="two-col">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Categoria</th><th>Unidades</th><th>Paletes</th></tr></thead>
+            <tbody>
+              {% for item in separacao_categorias %}
+                <tr><td>{{ item.categoria_label }}</td><td>{{ item.unidades_total|default:0 }}</td><td>{{ item.paletes_total|default:0 }}</td></tr>
+              {% empty %}
+                <tr><td colspan="3">Sem separação no período.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Loja</th><th>Unidades</th><th>Paletes</th></tr></thead>
+            <tbody>
+              {% for item in separacao_lojas %}
+                <tr><td>{{ item.loja }}</td><td>{{ item.unidades_total|default:0 }}</td><td>{{ item.paletes_total|default:0 }}</td></tr>
+              {% empty %}
+                <tr><td colspan="3">Sem lojas no período.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  {% endif %}
+
+  {% if mostrar_expedicao %}
+    <section class="panel fusao-report-panel">
+      <div class="panel-title">
+        <div>
+          <h2>Expedição</h2>
+          <p>Paletes expedidos por loja e por período.</p>
+        </div>
+      </div>
+      <div class="two-col">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Loja</th><th>Paletes</th><th>Gráfico</th></tr></thead>
+            <tbody>
+              {% for item in expedicao_lojas %}
+                <tr>
+                  <td>{{ item.loja }}</td>
+                  <td>{{ item.paletes_total|default:0 }}</td>
+                  <td>
+                      <div style="height:18px;background:#e9f1fa;border-radius:8px;overflow:hidden">
+                      <div style="height:18px;width:{{ item.percentual }}%;background:#073b73"></div>
+                    </div>
+                  </td>
+                </tr>
+              {% empty %}
+                <tr><td colspan="3">Sem expedição no período.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Período</th><th>Paletes</th></tr></thead>
+            <tbody>
+              {% for item in expedicao_periodos %}
+                <tr><td>{{ item.periodo_label }}</td><td>{{ item.paletes_total|default:0 }}</td></tr>
+              {% empty %}
+                <tr><td colspan="2">Sem períodos no período.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  {% endif %}
+
+  {% if mostrar_apoio %}
+    <section class="panel fusao-report-panel">
+      <div class="panel-title">
+        <div>
+          <h2>Qualidade e apoio</h2>
+          <p>Conferência, avarias, GLPI, materiais e pendências.</p>
+        </div>
+      </div>
+      <div class="two-col">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Avaria</th><th>Caixas</th><th>Unidades</th><th>Valor</th></tr></thead>
+            <tbody>
+              {% for item in avarias_tipos %}
+                <tr><td>{{ item.tipo_label }}</td><td>{{ item.caixas_total|default:0 }}</td><td>{{ item.unidades_total|default:0 }}</td><td>R$ {{ item.valor_total|default:0 }}</td></tr>
+              {% empty %}
+                <tr><td colspan="4">Sem avarias no período.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Material</th><th>Atual</th><th>Mínimo</th><th>Un.</th></tr></thead>
+            <tbody>
+              {% for item in materiais_pedido %}
+                <tr><td>{{ item.material }}</td><td>{{ item.estoque_atual }}</td><td>{{ item.estoque_minimo }}</td><td>{{ item.unidade }}</td></tr>
+              {% empty %}
+                <tr><td colspan="4">Sem materiais abaixo do mínimo.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <h3>Chamados GLPI e pendências</h3>
+      <div class="two-col">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Produto</th><th>GLPI</th><th>Status</th><th>Resp.</th></tr></thead>
+            <tbody>
+              {% for item in chamados_abertos %}
+                <tr><td>{{ item.produto }}</td><td>{{ item.numero_glpi }}</td><td>{{ item.get_status_display }}</td><td>{{ item.responsavel }}</td></tr>
+              {% empty %}
+                <tr><td colspan="4">Sem chamados abertos.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Setor</th><th>Pendência</th><th>Resp.</th><th>Status</th></tr></thead>
+            <tbody>
+              {% for item in pendencias_abertas %}
+                <tr><td>{{ item.setor }}</td><td>{{ item.descricao }}</td><td>{{ item.responsavel }}</td><td>{{ item.get_status_display }}</td></tr>
+              {% empty %}
+                <tr><td colspan="4">Sem pendências abertas.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  {% endif %}
+{% endblock %}

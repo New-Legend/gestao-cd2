@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+*.sqlite3
+db.sqlite3
+.env
+.venv/
+venv/
+staticfiles/
+*.log
+.DS_Store
+config_postgresql_local.txt
+.idea/
+.vscode/
+node_modules/
+.wrangler/

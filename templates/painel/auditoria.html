@@ -1,0 +1,117 @@
+{% extends "painel/base.html" %}
+{% block title %}Auditoria - Gestão CD{% endblock %}
+{% block page_title %}Painel Master{% endblock %}
+{% block content %}
+  <div class="split-grid">
+    <section class="panel fusao-admin-panel">
+      <div class="panel-title">
+        <div>
+          <h2>Usuários ativos agora</h2>
+          <p>Sessões válidas no navegador.</p>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Usuário</th><th>Login</th><th>CD</th><th>Última tela</th></tr></thead>
+          <tbody>
+            {% for item in usuarios_ativos %}
+              <tr><td>{{ item.usuario }}</td><td>{{ item.login }}</td><td>{{ item.cd }}</td><td>{{ item.rota }}</td></tr>
+            {% empty %}
+              <tr><td colspan="4">Nenhum usuário ativo encontrado.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+    <section class="panel fusao-admin-panel">
+      <div class="panel-title">
+        <div>
+          <h2>Últimos acessos</h2>
+          <p>Entradas e saídas registradas pelo sistema.</p>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Quando</th><th>Usuário</th><th>Ação</th><th>IP</th></tr></thead>
+          <tbody>
+            {% for log in ultimos_acessos %}
+              <tr>
+                <td>{{ log.criado_em|date:"d/m/Y H:i" }}</td>
+                <td>
+                  {% if log.usuario_nome %}
+                    {{ log.usuario_nome }}
+                  {% elif log.user %}
+                    {{ log.user.username }}
+                  {% else %}
+                    Sistema
+                  {% endif %}
+                </td>
+                <td>{{ log.acao }}</td>
+                <td>{{ log.ip }}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="4">Nenhum acesso recente encontrado.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+  <section class="panel fusao-admin-panel">
+    <div class="panel-title">
+      <div>
+        <h2>Auditoria da operação</h2>
+        <p>Tudo que for criado, alterado, excluído, importado ou acessado aparece aqui.</p>
+      </div>
+    </div>
+    <form method="get" class="form-grid" style="margin-bottom:12px">
+      <div>
+        <label>CD</label>
+        <select class="field" name="cd">
+          <option value="">Todos</option>
+          <option value="806" {% if cd_filtro == '806' %}selected{% endif %}>806</option>
+          <option value="801" {% if cd_filtro == '801' %}selected{% endif %}>801</option>
+        </select>
+      </div>
+      <div>
+        <label>Usuário</label>
+        <input class="field" name="usuario" value="{{ usuario_filtro }}" placeholder="Nome ou login">
+      </div>
+      <div>
+        <label>Busca geral</label>
+        <input class="field" name="q" value="{{ busca_filtro }}" placeholder="Ação, detalhe, módulo, IP...">
+      </div>
+      <div style="display:flex;align-items:end"><button class="btn secondary" type="submit">Filtrar</button></div>
+    </form>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Data/hora</th><th>Usuário</th><th>CD</th><th>Ação</th><th>Módulo</th><th>Detalhe</th><th>Antes</th><th>Depois</th><th>Computador</th></tr></thead>
+        <tbody>
+          {% for log in logs %}
+            <tr>
+              <td>{{ log.criado_em|date:"d/m/Y H:i" }}</td>
+              <td>
+                {% if log.usuario_nome %}
+                  {{ log.usuario_nome }}
+                {% elif log.user %}
+                  {{ log.user.username }}
+                {% else %}
+                  Sistema
+                {% endif %}
+              </td>
+              <td>{{ log.cd_unidade }}</td>
+              <td>{{ log.acao }}</td>
+              <td>{{ log.modulo }}</td>
+              <td>{{ log.detalhe }}</td>
+              <td><small>{{ log.dados_antes }}</small></td>
+              <td><small>{{ log.dados_depois }}</small></td>
+              <td>{{ log.computador }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="9">Nenhuma auditoria encontrada.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% endblock %}

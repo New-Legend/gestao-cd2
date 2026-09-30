@@ -1,0 +1,216 @@
+﻿{% extends "painel/base.html" %}
+{% block title %}{{ ui_labels.dashboard }} - Gestão CD{% endblock %}
+{% block page_title %}{{ ui_labels.dashboard }}{% endblock %}
+{% block content %}
+  <section class="hero rounded-xl bg-gradient-to-r from-[#061d37] to-[#073b73] text-white p-6 mb-4 shadow-md">
+    <p class="m-0 text-xs font-extrabold uppercase tracking-[0.2em] text-[#ffd21f]">Rede Krill · CD {{ cd_unidade_label }}</p>
+    <h2 class="m-0 mt-2 text-[clamp(24px,4vw,40px)] font-extrabold text-white">Central Operacional</h2>
+    <p class="m-0 mt-2 max-w-2xl text-sm text-slate-200">Atalhos, frota, colaboradores e alertas no mesmo painel — lógica Django intacta, visual Gestão CD.</p>
+  </section>
+
+  <section class="panel module-hub simplified-home fusao-admin-panel">
+    <div class="panel-title">
+      <div>
+        <h2>Entradas principais</h2>
+        <p>Use os cards abaixo como porta de entrada. As telas antigas continuam existindo, organizadas nas centrais.</p>
+      </div>
+    </div>
+    <div class="module-hub-grid fusao-card-grid">
+      {% for action in home_actions %}
+        <a class="module-hub-card home-action-card {{ action.tone }}" href="{{ action.url }}">
+          <span class="nav-icon inline-grid h-9 w-9 place-items-center rounded-lg bg-[#061d37] text-[#ffd21f]">{{ action.icon }}</span>
+          <strong>{{ action.title }}</strong>
+          <small>{{ action.description }}</small>
+        </a>
+      {% empty %}
+        <article class="module-hub-card">
+          <strong>Nenhuma central liberada</strong>
+          <small>Peça ao usuário master para revisar suas permissões.</small>
+        </article>
+      {% endfor %}
+    </div>
+  </section>
+
+  {% if cards %}
+    <section class="panel compact-home-metrics mt-4">
+      <div class="panel-title">
+        <div>
+          <h2>Indicadores rápidos</h2>
+          <p>{{ cards|length }} métrica(s) do contexto atual.</p>
+        </div>
+      </div>
+      <div class="fusao-card-grid">
+        {% for label, value in cards %}
+          <article class="card fusao-metric-card">
+            <span>{{ label }}</span>
+            <strong>{{ value }}</strong>
+          </article>
+        {% endfor %}
+      </div>
+    </section>
+  {% endif %}
+
+  {% if show_colaboradores_panel %}
+    <section class="panel mt-4">
+      <div class="panel-title">
+        <div>
+          <h2>Painel de colaboradores</h2>
+          <p>Férias, quadro do dia e funções conforme a permissão liberada.</p>
+        </div>
+        {% if colaboradores_panel.ferias or colaboradores_panel.heatmap %}
+          <a class="btn secondary" href="{% url 'module_list' 'ferias_colaboradores' %}">Abrir férias</a>
+        {% endif %}
+      </div>
+      <div class="dashboard-focus-grid fusao-card-grid">
+        {% if colaboradores_panel.ferias %}
+          <article class="compact-panel">
+            <h3>Férias e retornos próximos</h3>
+            <div class="heatmap-list">
+              {% for row in colaboradores_panel.ferias %}
+                <div class="heatmap-list-item">
+                  <span>{{ row.colaborador }} · {{ row.get_status_display }}</span>
+                  <strong>{{ row.retorno_previsto|date:"d/m" }}</strong>
+                </div>
+              {% endfor %}
+            </div>
+          </article>
+        {% endif %}
+        {% if colaboradores_panel.faltas %}
+          <article class="compact-panel">
+            <h3>Faltas no quadro</h3>
+            <div class="heatmap-list">
+              {% for item in colaboradores_panel.faltas %}
+                <div class="heatmap-list-item">
+                  <span>{{ item.row.get_setor_display }} · {{ item.row.funcao }}</span>
+                  <strong>{{ item.falta }}</strong>
+                </div>
+              {% endfor %}
+            </div>
+          </article>
+        {% endif %}
+        {% if colaboradores_panel.funcoes %}
+          <article class="compact-panel">
+            <h3>Funções do turno</h3>
+            <div class="heatmap-list">
+              {% for row in colaboradores_panel.funcoes %}
+                <div class="heatmap-list-item">
+                  <span>{{ row.get_setor_display }} · {{ row.nome }}</span>
+                  <strong>{{ row.quadro_padrao }}</strong>
+                </div>
+              {% endfor %}
+            </div>
+          </article>
+        {% endif %}
+        {% if colaboradores_panel.heatmap %}
+          <article class="compact-panel">
+            <h3>Mapa de calor</h3>
+            <p class="muted">{{ colaboradores_panel.heatmap.total_colaboradores }} colaborador(es) no período de {{ colaboradores_panel.heatmap.periodo_inicio|date:"d/m" }} a {{ colaboradores_panel.heatmap.periodo_fim|date:"d/m" }}.</p>
+            <a class="btn secondary" href="{% url 'module_list' 'ferias_colaboradores' %}">Ver mapa completo</a>
+          </article>
+        {% endif %}
+      </div>
+    </section>
+  {% endif %}
+
+  {% if show_frota_panel %}
+    <section class="panel mt-4">
+      <div class="panel-title">
+        <div>
+          <h2>Painel da frota</h2>
+          <p>Resumo rápido dos check-lists, retornos e manutenção.</p>
+        </div>
+        <a class="btn secondary" href="{% url 'module_list' 'checklist_frota' %}?painel=frota">Abrir frota</a>
+      </div>
+      <div class="fusao-card-grid">
+        <article class="card fusao-metric-card"><span>Check-lists hoje</span><strong>{{ frota_panel.checklists }}</strong></article>
+        <article class="card fusao-metric-card"><span>Saídas</span><strong>{{ frota_panel.saidas }}</strong></article>
+        <article class="card fusao-metric-card"><span>Retornos</span><strong>{{ frota_panel.retornos }}</strong></article>
+        <article class="card fusao-metric-card"><span>Retornos pendentes</span><strong>{{ frota_panel.retornos_pendentes }}</strong></article>
+        <article class="card fusao-metric-card"><span>Manutenção</span><strong>{{ frota_panel.manutencoes }}</strong></article>
+        {% if frota_panel.show_intercalacoes %}
+          <article class="card fusao-metric-card"><span>Intercalações pendentes</span><strong>{{ frota_panel.intercalacoes }}</strong></article>
+        {% endif %}
+      </div>
+    </section>
+  {% endif %}
+
+  {% if show_closure_panel or central_alertas %}
+    <div class="two-col mt-4">
+      {% if show_closure_panel %}
+        <section class="panel">
+          <div class="panel-title">
+            <div>
+              <h2>Checklist de fechamento</h2>
+              <p>Conferência rápida antes de encerrar a rotina do dia.</p>
+            </div>
+            <a class="btn secondary" href="{% url 'relatorios' %}?inicio={{ data }}&fim={{ data }}&tipo=geral">Ver relatório do dia</a>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Status</th><th>Item</th><th>Detalhe</th></tr></thead>
+              <tbody>
+                {% for item in checklist %}
+                  <tr>
+                    <td>{% if item.ok %}<span class="status-pill ok">OK</span>{% else %}<span class="status-pill paused">Pendente</span>{% endif %}</td>
+                    <td>{{ item.item }}</td>
+                    <td>{{ item.detalhe }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      {% endif %}
+
+      {% if central_alertas %}
+        <section class="panel">
+          <div class="panel-title">
+            <div>
+              <h2>Central de alertas</h2>
+              <p>Notificações importantes do CD, com atalho para a tela correta.</p>
+            </div>
+          </div>
+          <div class="alert-center-list">
+            {% for alerta in central_alertas %}
+              <article class="alert-center-item {{ alerta.nivel }}">
+                <div class="alert-center-icon">!</div>
+                <div>
+                  <strong>{{ alerta.titulo }}</strong>
+                  <p>{{ alerta.texto }}</p>
+                  <small>{{ alerta.data|date:"d/m/Y" }}</small>
+                </div>
+                {% if alerta.url %}
+                  <a class="btn secondary small" href="{{ alerta.url }}">Abrir</a>
+                {% endif %}
+              </article>
+            {% endfor %}
+          </div>
+        </section>
+      {% endif %}
+    </div>
+  {% endif %}
+
+  {% if show_pendencias_panel %}
+    <section class="panel mt-4">
+      <div class="panel-title">
+        <div>
+          <h2>Pendências abertas</h2>
+          <p>Itens que ainda precisam de acompanhamento.</p>
+        </div>
+        <a class="btn secondary" href="{% url 'module_list' 'pendencias' %}">Abrir pendências</a>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Data</th><th>Setor</th><th>Descrição</th><th>Responsável</th><th>Status</th></tr></thead>
+          <tbody>
+            {% for row in pendencias %}
+              <tr><td>{{ row.data|date:"d/m/Y" }}</td><td>{{ row.setor }}</td><td>{{ row.descricao }}</td><td>{{ row.responsavel }}</td><td>{{ row.get_status_display }}</td></tr>
+            {% empty %}
+              <tr><td colspan="5">Nenhuma pendência aberta para este CD.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  {% endif %}
+{% endblock %}

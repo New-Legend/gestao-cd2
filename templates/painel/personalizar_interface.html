@@ -1,0 +1,149 @@
+{% extends "painel/base.html" %}
+{% block title %}Personalizar interface - Gestão CD{% endblock %}
+{% block page_title %}Personalizar interface{% endblock %}
+{% block content %}
+  <section class="hero fusao-admin-panel" style="padding:16px">
+    <h2 style="margin:0;font-size:clamp(24px,4vw,40px)">Nomes, abas e painéis</h2>
+    <p>Altere nomes e mova painéis entre abas. As permissões, rotas e dados continuam protegidos pelas mesmas chaves internas.</p>
+  </section>
+
+  <form method="post">
+    {% csrf_token %}
+    <section class="panel fusao-admin-panel">
+      <div class="panel-title">
+        <div>
+          <h2>Painéis principais</h2>
+          <p>Links fixos da sidebar, como painel do dia, relatórios e gestão de acesso.</p>
+        </div>
+      </div>
+      <div class="form-grid">
+        {% for item in panel_config %}
+          <div>
+            <label for="panel_{{ item.key }}">{{ item.title }}</label>
+            <div class="label-icon-fields">
+              <input class="field icon-field" name="panel_icon_{{ item.key }}" value="{{ item.icon }}" maxlength="3" aria-label="Sigla de {{ item.title }}">
+              <input class="field" id="panel_{{ item.key }}" name="panel_{{ item.key }}" value="{{ item.label }}">
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="panel fusao-admin-panel">
+      <div class="panel-title">
+        <div>
+          <h2>Abas do menu</h2>
+          <p>Renomeie os grupos da sidebar. Os painéis podem ser movidos para qualquer aba listada aqui.</p>
+        </div>
+      </div>
+      <div class="form-grid">
+        {% for item in menu_config %}
+          <div>
+            <input type="hidden" name="menu_key" value="{{ item.key }}">
+            <label>{{ item.key }}</label>
+            <input class="field" name="menu_label" value="{{ item.label }}">
+          </div>
+        {% endfor %}
+        <div>
+          <label>Nova aba</label>
+          <input class="field" name="new_menu_label" placeholder="Ex.: Gerencial Naka">
+        </div>
+        <div>
+          <label>Nova aba</label>
+          <input class="field" name="new_menu_label" placeholder="Ex.: Expedição supervisor">
+        </div>
+      </div>
+    </section>
+
+    <section class="panel fusao-admin-panel">
+      <div class="panel-title">
+        <div>
+          <h2>Painéis das abas</h2>
+          <p>O nome e a aba mudam para todos que têm permissão de visualizar o painel. A permissão não muda.</p>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Sigla</th><th>Aba padrão</th><th>Nome padrão</th><th>Novo nome exibido</th><th>Mover para aba</th></tr>
+          </thead>
+          <tbody>
+            {% for item in modules_config %}
+              <tr>
+                <td><input class="field icon-field" name="icon_{{ item.key }}" value="{{ item.icon }}" maxlength="3" aria-label="Sigla de {{ item.title }}"></td>
+                <td>{{ item.menu }}</td>
+                <td>{{ item.title }}</td>
+                <td><input class="field" name="module_{{ item.key }}" value="{{ item.label }}"></td>
+                <td>
+                  <select class="field" name="module_menu_{{ item.key }}">
+                    {% for menu in menu_config %}
+                      <option value="{{ menu.key }}" {% if menu.key == item.selected_menu %}selected{% endif %}>{{ menu.label }}</option>
+                    {% endfor %}
+                  </select>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel fusao-admin-panel">
+      <div class="panel-title">
+        <div>
+          <h2>Centrais em cards</h2>
+          <p>Monte uma central com cards de telas existentes. Ao marcar a opção de ocultar, as telas escolhidas saem do menu lateral e ficam reunidas dentro da central.</p>
+        </div>
+      </div>
+      <div class="form-grid">
+        {% for hub in hub_config %}
+          <article class="compact-panel">
+            <input type="hidden" name="hub_slot" value="{{ hub.slot }}">
+            <input type="hidden" name="hub_key_{{ hub.slot }}" value="{{ hub.key }}">
+            <h3>{% if hub.is_new %}Nova central{% else %}{{ hub.title|default:"Central configurada" }}{% endif %}</h3>
+            {% if not hub.is_new %}
+              <label class="checkline">
+                <input type="checkbox" name="hub_delete_{{ hub.slot }}">
+                <span>Excluir esta central</span>
+              </label>
+            {% endif %}
+            <label>Nome da central</label>
+            <input class="field" name="hub_title_{{ hub.slot }}" value="{{ hub.title }}" placeholder="Ex.: Gerencial Naka">
+            <label>Sigla</label>
+            <input class="field icon-field" name="hub_icon_{{ hub.slot }}" value="{{ hub.icon }}" maxlength="3">
+            <label>Aba onde aparece</label>
+            <select class="field" name="hub_menu_{{ hub.slot }}">
+              {% for menu in menu_config %}
+                <option value="{{ menu.key }}" {% if menu.key == hub.menu %}selected{% endif %}>{{ menu.label }}</option>
+              {% endfor %}
+            </select>
+            <label>Descricao</label>
+            <input class="field" name="hub_description_{{ hub.slot }}" value="{{ hub.description }}" placeholder="Resumo que aparece no topo da central">
+            <label class="checkline">
+              <input type="checkbox" name="hub_hide_menu_cards_{{ hub.slot }}" {% if hub.hide_menu_cards %}checked{% endif %}>
+              <span>Ocultar no menu os cards escolhidos e deixar acesso somente pela central</span>
+            </label>
+            <div class="check-grid" style="margin-top:10px">
+              {% for option in central_options %}
+                <label>
+                  <input type="checkbox" name="hub_cards_{{ hub.slot }}" value="{{ option.id }}" {% if option.id in hub.cards %}checked{% endif %}>
+                  <span>
+                    <strong>{{ option.title }}</strong>
+                    <small>{{ option.description }}</small>
+                  </span>
+                </label>
+              {% endfor %}
+            </div>
+          </article>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="panel fusao-admin-panel">
+      <div class="actions">
+        <button class="btn" type="submit" name="action" value="save">Salvar interface</button>
+        <button class="btn secondary" type="submit" name="action" value="reset" onclick="return confirm('Restaurar todos os nomes e movimentos para o padrão?')">Restaurar padrão</button>
+      </div>
+    </section>
+  </form>
+{% endblock %}

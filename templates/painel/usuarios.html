@@ -1,0 +1,560 @@
+{% extends "painel/base.html" %}
+{% load painel_extras %}
+{% block title %}Gestão de acesso - Gestão CD{% endblock %}
+{% block page_title %}Gestão de acesso{% endblock %}
+{% block content %}
+  <section class="access-control-hero fusao-admin-panel">
+    <div>
+      <span class="eyebrow">Controle de acessos</span>
+      <h2>Usuários por função, sem lista infinita</h2>
+      <p>Use os atalhos para criar login, localizar alguém ou abrir somente o cadastro que precisa ajustar.</p>
+    </div>
+    <div class="access-control-actions">
+      <a class="btn" href="#novo-usuario">Novo usuário</a>
+      <a class="btn secondary" href="#usuarios-cadastrados">Gerenciar usuários</a>
+    </div>
+  </section>
+  <section class="access-summary-grid fusao-card-grid" aria-label="Resumo dos usuários">
+    <article class="access-summary-card">
+      <span>Usuários</span>
+      <strong>{{ users|length }}</strong>
+      <small>{{ usuarios_ativos }} ativo(s)</small>
+    </article>
+    <article class="access-summary-card">
+      <span>Pedidos pendentes</span>
+      <strong>{{ solicitacoes_pendentes_total }}</strong>
+      <small>Senha e acesso</small>
+    </article>
+    <article class="access-summary-card {% if usuarios_alertas %}attention{% endif %}">
+      <span>Alertas de cadastro</span>
+      <strong>{{ usuarios_alertas }}</strong>
+      <small>Permissões que merecem revisão</small>
+    </article>
+  </section>
+  <details class="panel management-section fusao-admin-panel" style="margin-bottom:18px">
+    <summary class="management-section-summary">
+      <span>
+        <strong>Solicitações de senha</strong>
+        <small>Pedidos feitos pela tela "Esqueci minha senha".</small>
+      </span>
+      <span class="management-section-count">{{ solicitacoes_senha|length }}</span>
+    </summary>
+    <div class="management-section-body">
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Quando</th><th>Login informado</th><th>Usuário localizado</th><th>Ação</th></tr></thead>
+        <tbody>
+          {% for pedido in solicitacoes_senha %}
+            <tr>
+              <td>{{ pedido.criado_em|date:"d/m/Y H:i" }}</td>
+              <td><strong>{{ pedido.login_informado }}</strong></td>
+              <td>
+                <span class="status-pill {% if pedido.status == 'em_andamento' %}paused{% else %}ok{% endif %}">{{ pedido.get_status_display }}</span>
+                {% if pedido.observacao %}<p class="muted" style="margin:6px 0 0">{{ pedido.observacao }}</p>{% endif %}
+                {% if pedido.usuario %}
+                  {{ pedido.usuario.get_full_name|default:pedido.usuario.username }}<br>
+                  <span class="muted">{{ pedido.usuario.username }}</span>
+                {% else %}
+                  <span class="muted">Login não encontrado automaticamente.</span>
+                {% endif %}
+              </td>
+              <td class="access-request-actions">
+                {% if pedido.usuario %}
+                  <form class="request-action-form" method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="reset_password_request">
+                    <input type="hidden" name="request_id" value="{{ pedido.id }}">
+                    <input class="field" name="senha" placeholder="Nova senha ou deixe vazio">
+                    <button class="btn small" type="submit">Redefinir e atender</button>
+                    <button class="btn small secondary" type="submit" name="gerar_temporaria" value="1">Gerar temporária</button>
+                  </form>
+                {% endif %}
+                <form class="request-action-form" method="post">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="cancel_password_request">
+                  <input type="hidden" name="request_id" value="{{ pedido.id }}">
+                  <input class="field" name="observacao" placeholder="Motivo opcional">
+                  <button class="btn small secondary" type="submit">Cancelar pedido</button>
+                </form>
+                <form class="request-action-form" method="post">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="progress_password_request">
+                  <input type="hidden" name="request_id" value="{{ pedido.id }}">
+                  <input class="field" name="observacao" placeholder="Mensagem de andamento">
+                  <button class="btn small secondary" type="submit">Em andamento</button>
+                </form>
+                <form class="request-action-form" method="post">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="answer_password_request">
+                  <input type="hidden" name="request_id" value="{{ pedido.id }}">
+                  <input class="field" name="observacao" placeholder="Resposta para registrar">
+                  <button class="btn small" type="submit">Responder</button>
+                </form>
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="4">Nenhum pedido pendente.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if historico_senhas %}
+      <details style="margin-top:12px">
+        <summary style="cursor:pointer;font-weight:800">Histórico recente de senhas</summary>
+        <div class="table-wrap" style="margin-top:10px">
+          <table>
+            <thead><tr><th>Quando</th><th>Login</th><th>Status</th><th>Atendido por</th></tr></thead>
+            <tbody>
+              {% for item in historico_senhas %}
+                <tr>
+                  <td>{{ item.atendido_em|default:item.criado_em|date:"d/m/Y H:i" }}</td>
+                  <td>{{ item.login_informado }}</td>
+                  <td>{{ item.get_status_display }}</td>
+                  <td>{% if item.atendido_por %}{{ item.atendido_por.get_full_name|default:item.atendido_por.username }}{% else %}-{% endif %}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </details>
+    {% endif %}
+      <button class="btn secondary management-close" type="button" data-close-details>Fechar solicitações de senha</button>
+    </div>
+  </details>
+  <details class="panel management-section fusao-admin-panel" style="margin-bottom:18px">
+    <summary class="management-section-summary">
+      <span>
+        <strong>Segurança dos logins</strong>
+        <small>Criações, pausas, senhas e alterações de perfil.</small>
+      </span>
+      <span class="management-section-count">{{ historico_seguranca|length }}</span>
+    </summary>
+    <div class="management-section-body">
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Quando</th><th>Quem fez</th><th>Ação</th><th>Login afetado / detalhe</th><th>IP</th></tr></thead>
+        <tbody>
+          {% for log in historico_seguranca %}
+            <tr>
+              <td>{{ log.criado_em|date:"d/m/Y H:i" }}</td>
+              <td>{{ log.usuario_nome|default:log.user.username|default:"Sistema" }}</td>
+              <td>{{ log.acao }}</td>
+              <td>{{ log.detalhe }}</td>
+              <td>{{ log.ip }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="5">Nenhum evento de segurança recente.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+      <button class="btn secondary management-close" type="button" data-close-details>Fechar segurança dos logins</button>
+    </div>
+  </details>
+  <details class="panel management-section fusao-admin-panel" style="margin-bottom:18px">
+    <summary class="management-section-summary">
+      <span>
+        <strong>Solicitações de acesso</strong>
+        <small>Novo login, reativação ou alteração de permissões.</small>
+      </span>
+      <span class="management-section-count">{{ solicitacoes_acesso|length }}</span>
+    </summary>
+    <div class="management-section-body">
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Quando</th><th>Solicitante</th><th>Pedido</th><th>Ação</th></tr></thead>
+        <tbody>
+          {% for pedido in solicitacoes_acesso %}
+            <tr>
+              <td>{{ pedido.criado_em|date:"d/m/Y H:i" }}</td>
+              <td>
+                <strong>{{ pedido.nome }}</strong><br>
+                {% if pedido.usuario %}
+                  <span class="muted">Feito por {{ pedido.usuario.get_full_name|default:pedido.usuario.username }}</span>
+                {% else %}
+                  <span class="muted">Pedido público</span>
+                {% endif %}
+                {% if pedido.contato %}<br><span class="muted">{{ pedido.contato }}</span>{% endif %}
+              </td>
+              <td>
+                <span class="status-pill {% if pedido.status == 'em_andamento' %}paused{% else %}ok{% endif %}">{{ pedido.get_status_display }}</span>
+                <p style="margin:6px 0 0"><strong>{{ pedido.get_tipo_display }}</strong>{% if pedido.login_desejado %} · {{ pedido.login_desejado }}{% endif %}</p>
+                <p class="muted" style="margin:4px 0 0">CD {{ pedido.cd_unidade|default:"-" }} · {{ pedido.cargo|default:"Cargo não informado" }} · {{ pedido.setor|default:"Setor não informado" }}</p>
+                {% if pedido.justificativa %}<p class="muted" style="margin:6px 0 0">{{ pedido.justificativa }}</p>{% endif %}
+              </td>
+              <td class="access-request-actions">
+                <a class="btn small secondary" href="{% url 'usuarios' %}?from_access={{ pedido.id }}#novo-usuario">Preencher novo usuário</a>
+                <form class="request-action-form" method="post">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="progress_access_request">
+                  <input type="hidden" name="request_id" value="{{ pedido.id }}">
+                  <input class="field" name="resposta" placeholder="Mensagem de andamento">
+                  <button class="btn small secondary" type="submit">Em andamento</button>
+                </form>
+                <form class="request-action-form" method="post">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="answer_access_request">
+                  <input type="hidden" name="request_id" value="{{ pedido.id }}">
+                  <input class="field" name="resposta" placeholder="Resposta para o solicitante">
+                  <button class="btn small" type="submit">Responder</button>
+                </form>
+                <form class="request-action-form" method="post">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="finish_access_request">
+                  <input type="hidden" name="request_id" value="{{ pedido.id }}">
+                  <input class="field" name="resposta" placeholder="O que foi feito">
+                  <button class="btn small" type="submit">Marcar atendido</button>
+                </form>
+                <form class="request-action-form" method="post">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="cancel_access_request">
+                  <input type="hidden" name="request_id" value="{{ pedido.id }}">
+                  <input class="field" name="resposta" placeholder="Motivo opcional">
+                  <button class="btn small secondary" type="submit">Cancelar</button>
+                </form>
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="4">Nenhum pedido de acesso pendente.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if historico_acessos %}
+      <details style="margin-top:12px">
+        <summary style="cursor:pointer;font-weight:800">Histórico recente de acessos</summary>
+        <div class="table-wrap" style="margin-top:10px">
+          <table>
+            <thead><tr><th>Quando</th><th>Nome</th><th>Tipo</th><th>Status</th><th>Atendido por</th></tr></thead>
+            <tbody>
+              {% for item in historico_acessos %}
+                <tr>
+                  <td>{{ item.atendido_em|default:item.criado_em|date:"d/m/Y H:i" }}</td>
+                  <td>{{ item.nome }}</td>
+                  <td>{{ item.get_tipo_display }}</td>
+                  <td>{{ item.get_status_display }}</td>
+                  <td>{% if item.atendido_por %}{{ item.atendido_por.get_full_name|default:item.atendido_por.username }}{% else %}-{% endif %}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </details>
+    {% endif %}
+      <button class="btn secondary management-close" type="button" data-close-details>Fechar solicitações de acesso</button>
+    </div>
+  </details>
+  <div class="access-layout">
+    <details class="panel management-section fusao-admin-panel" id="novo-usuario" {% if request.GET.from_access or form.errors %}open{% endif %}>
+      <summary class="management-section-summary">
+        <span>
+          <strong>Novo usuário</strong>
+          <small>Cadastre o básico e ajuste as permissões.</small>
+        </span>
+        <span class="management-section-icon">+</span>
+      </summary>
+      <div class="management-section-body">
+      <form method="post" autocomplete="off" data-draft="off">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="create">
+        <div class="form-grid">
+          {% for field in form %}
+            {% if field.name != "permissoes" %}
+              <div>
+                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+              </div>
+            {% endif %}
+          {% endfor %}
+        </div>
+        <details class="optional-panel" style="margin-top:14px">
+          <summary>Permissões do novo usuário</summary>
+          <div class="permission-groups" style="padding:12px">
+          <div style="margin-bottom:12px">
+            <label>Copiar permissões de outro login</label>
+            <select class="field" name="copiar_permissoes_de">
+              <option value="">Não copiar</option>
+              {% for source in users %}
+                <option value="{{ source.id }}">{{ source.get_full_name|default:source.username }} - {{ source.username }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <details class="permission-presets">
+            <summary>Usar modelo por função</summary>
+            <div class="permission-preset-grid">
+              {% for preset in permission_presets %}
+                <button class="permission-preset-card" type="button" data-permission-preset="{{ preset.permissions|join:',' }}">
+                  <strong>{{ preset.title }}</strong>
+                  <span>{{ preset.description }}</span>
+                </button>
+              {% endfor %}
+            </div>
+          </details>
+          <div class="permission-live-summary" data-permission-summary>
+            <strong>Resumo antes de salvar</strong>
+            <span>Escolha um modelo por função ou marque permissões para conferir o acesso.</span>
+          </div>
+          {% for group in permission_groups %}
+            <details class="permission-group">
+              <summary><span class="permission-title">{{ group.title }}</span><span class="permission-count">{{ group.items|length }}</span></summary>
+              <div class="check-grid">
+                {% for item in group.items %}
+                  <label class="permission-option">
+                    <span><input type="checkbox" name="permissoes" value="{{ item.key }}" {% if item.key in create_permission_values %}checked{% endif %}> {{ item.label }}</span>
+                    {% if item.description %}<small>{{ item.description }}</small>{% endif %}
+                  </label>
+                {% endfor %}
+              </div>
+            </details>
+          {% endfor %}
+          </div>
+        </details>
+        <div style="margin-top:16px"><button class="btn" type="submit">Criar usuário</button></div>
+      </form>
+        <button class="btn secondary management-close" type="button" data-close-details>Fechar cadastro</button>
+      </div>
+    </details>
+    <details class="panel management-section fusao-admin-panel" id="usuarios-cadastrados" open>
+      <summary class="management-section-summary">
+        <span>
+          <strong>Usuários cadastrados</strong>
+          <small>Filtre por área, status ou nome. Abra somente o cadastro que precisa alterar.</small>
+        </span>
+        <span class="management-section-count">{{ users|length }}</span>
+      </summary>
+      <div class="management-section-body">
+      <div class="access-filter-panel">
+        <label>Buscar usuário
+          <input class="field" data-access-user-search placeholder="Digite nome, login, CD ou função">
+        </label>
+        <div class="access-filter-chips" role="group" aria-label="Filtros de usuários">
+          <button type="button" class="access-filter-chip is-active" data-access-filter="todos">Todos</button>
+          <button type="button" class="access-filter-chip" data-access-filter="ativo">Ativos</button>
+          <button type="button" class="access-filter-chip" data-access-filter="pausado">Pausados</button>
+          <button type="button" class="access-filter-chip" data-access-filter="alerta">Com alerta</button>
+          <button type="button" class="access-filter-chip" data-access-filter="frota">Frota</button>
+          <button type="button" class="access-filter-chip" data-access-filter="expedicao">Expedição</button>
+          <button type="button" class="access-filter-chip" data-access-filter="operacao">Operação CD</button>
+          <button type="button" class="access-filter-chip" data-access-filter="motorista">Motoristas</button>
+          <button type="button" class="access-filter-chip" data-access-filter="master">Master</button>
+        </div>
+      </div>
+      <div class="access-user-list">
+        {% for item in usuarios_resumo %}
+          {% with user=item.user profile=item.profile %}
+          <details class="access-user-card" data-access-user-card data-user-status="{% if user.is_active %}ativo{% else %}pausado{% endif %}" data-user-area="{{ item.area_key }}" data-user-alert="{% if item.warnings %}alerta{% else %}ok{% endif %}" data-user-search="{{ item.search }}">
+            <summary>
+              <div class="access-user-main">
+                <span class="access-avatar">{{ item.area|slice:":2" }}</span>
+                <span>
+                  <strong>{{ user.get_full_name|default:user.username }}</strong>
+                  <small>{{ user.username }} · {{ profile.get_cargo_display }} · {{ item.cd_label }}</small>
+                </span>
+              </div>
+              <div class="access-user-badges">
+                <span class="status-pill">{{ item.area }}</span>
+                {% if user.is_active %}<span class="status-pill ok">Ativo</span>{% else %}<span class="status-pill paused">Pausado</span>{% endif %}
+                {% if item.warnings %}<span class="status-pill paused">{{ item.warnings|length }} alerta(s)</span>{% endif %}
+              </div>
+            </summary>
+            <div class="access-user-snapshot">
+              <div>
+                <span>Telas principais</span>
+                <strong>{% if item.visible %}{{ item.visible|join:", " }}{% else %}Nenhuma tela principal definida{% endif %}</strong>
+              </div>
+              <div>
+                <span>Permissões</span>
+                <strong>{{ item.permission_count }}</strong>
+              </div>
+              {% if item.warnings %}
+                <div class="attention">
+                  <span>Revisar</span>
+                  <strong>{{ item.warnings|join:", " }}</strong>
+                </div>
+              {% endif %}
+            </div>
+            <div class="access-user-body">
+              <form method="post" autocomplete="off" data-draft="off">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="update">
+                <input type="hidden" name="user_id" value="{{ user.id }}">
+                <div class="form-grid">
+                  <div>
+                    <label>Login fixo</label>
+                    <input class="field" value="{{ user.username }}" readonly>
+                  </div>
+                  <div>
+                    <label>Nome</label>
+                    <input class="field" name="first_name" value="{{ user.first_name }}" autocomplete="off">
+                  </div>
+                  <div>
+                    <label>Sobrenome</label>
+                    <input class="field" name="last_name" value="{{ user.last_name }}" autocomplete="off">
+                  </div>
+                  <div>
+                    <label>Cargo</label>
+                    <select class="field" name="cargo">
+                      {% for value,label in user.perfil_krill.CARGOS %}
+                        <option value="{{ value }}" {% if user.perfil_krill.cargo == value %}selected{% endif %}>{{ label }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                  <div>
+                    <label>CD padrão</label>
+                    <select class="field" name="cd_padrao">
+                      <option value="806" {% if user.perfil_krill.cd_padrao == '806' %}selected{% endif %}>806</option>
+                      <option value="801" {% if user.perfil_krill.cd_padrao == '801' %}selected{% endif %}>801</option>
+                      <option value="801+806" {% if user.perfil_krill.cd_padrao == '801+806' %}selected{% endif %}>801-806</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label>Acesso ativo</label>
+                    <input class="field-check" type="checkbox" name="is_active" {% if user.is_active %}checked{% endif %}>
+                  </div>
+                </div>
+                <details class="optional-panel" style="margin-top:12px">
+                  <summary>Permissões e modelos prontos</summary>
+                  <div class="permission-groups compact" style="padding:12px">
+                    <div class="permission-live-summary" data-permission-summary>
+                      <strong>Resumo antes de salvar</strong>
+                      <span>Use um modelo ou marque permissões para ver o que este login terá acesso.</span>
+                    </div>
+                    <div style="margin-bottom:12px">
+                      <label>Copiar permissões de outro login</label>
+                      <select class="field" name="copiar_permissoes_de">
+                        <option value="">Não copiar</option>
+                        {% for source in users %}
+                          {% if source.id != user.id %}
+                            <option value="{{ source.id }}">{{ source.get_full_name|default:source.username }} - {{ source.username }}</option>
+                          {% endif %}
+                        {% endfor %}
+                      </select>
+                      <p class="muted" style="margin:6px 0 0">Ao salvar, as permissões marcadas serão substituídas pelas permissões do login escolhido.</p>
+                    </div>
+                    <details class="permission-presets">
+                      <summary>Usar modelo por função</summary>
+                      <div class="permission-preset-grid">
+                        {% for preset in permission_presets %}
+                          <button class="permission-preset-card" type="button" data-permission-preset="{{ preset.permissions|join:',' }}">
+                            <strong>{{ preset.title }}</strong>
+                            <span>{{ preset.description }}</span>
+                          </button>
+                        {% endfor %}
+                      </div>
+                    </details>
+                    {% for group in permission_groups %}
+                      <details class="permission-group">
+                        <summary><span class="permission-title">{{ group.title }}</span><span class="permission-count">{{ group.items|length }}</span></summary>
+                        <div class="check-grid">
+                          {% for item in group.items %}
+                            <label class="permission-option">
+                              <span><input type="checkbox" name="permissoes" value="{{ item.key }}" {% if item.key in user.perfil_krill.permissoes %}checked{% endif %}> {{ item.label }}</span>
+                              {% if item.description %}<small>{{ item.description }}</small>{% endif %}
+                            </label>
+                          {% endfor %}
+                        </div>
+                      </details>
+                    {% endfor %}
+                  </div>
+                </details>
+                <div class="actions" style="margin-top:12px">
+                  <button class="btn small" type="submit">Salvar usuário</button>
+                </div>
+              </form>
+              <div class="access-user-actions">
+                {% if user.id != request.user.id %}
+                  <form method="post" data-draft="off">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="{% if user.is_active %}pause_login{% else %}resume_login{% endif %}">
+                    <input type="hidden" name="user_id" value="{{ user.id }}">
+                    <button class="btn small {% if user.is_active %}danger{% endif %}" type="submit">{% if user.is_active %}Pausar login{% else %}Reativar login{% endif %}</button>
+                  </form>
+                {% endif %}
+                <form method="post" data-draft="off" autocomplete="off">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="reset_password">
+                  <input type="hidden" name="user_id" value="{{ user.id }}">
+                  <input class="field" name="senha" placeholder="Nova senha ou deixe vazio" autocomplete="new-password">
+                  <button class="btn small secondary" type="submit">Redefinir senha</button>
+                  <button class="btn small secondary" type="submit" name="gerar_temporaria" value="1">Gerar temporária</button>
+                  <p class="muted" style="margin:6px 0 0">A senha atual não é exibida por segurança. Gere ou defina uma nova quando precisar.</p>
+                </form>
+              </div>
+            </div>
+          </details>
+          {% endwith %}
+        {% empty %}
+          <p class="muted">Nenhum usuário cadastrado.</p>
+        {% endfor %}
+        <p class="muted access-empty-state" data-access-empty hidden>Nenhum usuário encontrado com esse filtro.</p>
+      </div>
+        <button class="btn secondary management-close" type="button" data-close-details>Fechar usuários cadastrados</button>
+      </div>
+    </details>
+  </div>
+  <script>
+    (function () {
+      function updatePermissionSummary(form) {
+        var summary = form.querySelector("[data-permission-summary]");
+        if (!summary) return;
+        var checked = Array.from(form.querySelectorAll("input[name='permissoes']:checked"));
+        var names = checked.map(function (checkbox) {
+          var label = checkbox.closest(".permission-option");
+          return label ? label.innerText.trim().split("\n")[0] : checkbox.value;
+        }).filter(Boolean);
+        var text = names.length ? names.slice(0, 8).join(", ") : "Nenhuma permissão marcada.";
+        if (names.length > 8) text += " +" + (names.length - 8) + " outra(s)";
+        summary.innerHTML = "<strong>Resumo antes de salvar</strong><span>" + checked.length + " permissão(ões): " + text + "</span>";
+      }
+      document.querySelectorAll("form").forEach(function (form) {
+        if (!form.querySelector("[data-permission-summary]")) return;
+        form.querySelectorAll("input[name='permissoes']").forEach(function (checkbox) {
+          checkbox.addEventListener("change", function () { updatePermissionSummary(form); });
+        });
+        updatePermissionSummary(form);
+      });
+      document.querySelectorAll("[data-permission-preset]").forEach(function (button) {
+        button.addEventListener("click", function () {
+          var form = button.closest("form");
+          if (!form) return;
+          var allowed = new Set(String(button.dataset.permissionPreset || "").split(",").filter(Boolean));
+          form.querySelectorAll("input[name='permissoes']").forEach(function (checkbox) {
+            checkbox.checked = allowed.has(checkbox.value);
+          });
+          updatePermissionSummary(form);
+          var summary = button.closest(".permission-presets");
+          if (summary) summary.open = false;
+        });
+      });
+      var search = document.querySelector("[data-access-user-search]");
+      var chips = Array.from(document.querySelectorAll("[data-access-filter]"));
+      var cards = Array.from(document.querySelectorAll("[data-access-user-card]"));
+      var empty = document.querySelector("[data-access-empty]");
+      var activeFilter = "todos";
+      function applyUserFilters() {
+        var term = search ? search.value.trim().toLowerCase() : "";
+        var visible = 0;
+        cards.forEach(function (card) {
+          var matchesTerm = !term || String(card.dataset.userSearch || "").includes(term);
+          var matchesFilter = activeFilter === "todos"
+            || card.dataset.userStatus === activeFilter
+            || card.dataset.userArea === activeFilter
+            || card.dataset.userAlert === activeFilter;
+          var show = matchesTerm && matchesFilter;
+          card.hidden = !show;
+          if (show) visible += 1;
+        });
+        if (empty) empty.hidden = visible !== 0;
+      }
+      if (search) search.addEventListener("input", applyUserFilters);
+      chips.forEach(function (chip) {
+        chip.addEventListener("click", function () {
+          activeFilter = chip.dataset.accessFilter || "todos";
+          chips.forEach(function (item) { item.classList.toggle("is-active", item === chip); });
+          applyUserFilters();
+        });
+      });
+      applyUserFilters();
+    })();
+  </script>
+{% endblock %}

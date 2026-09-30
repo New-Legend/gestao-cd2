@@ -1,0 +1,609 @@
+{% extends "painel/base.html" %}
+{% load painel_extras %}
+{% block title %}{{ ui_labels.painel_gestao }} - Gestão CD{% endblock %}
+{% block page_title %}{{ ui_labels.painel_gestao }}{% endblock %}
+{% block page_subtitle %}Visão ao vivo da operação para acompanhamento gerencial.{% endblock %}
+{% block content %}
+<style>
+  .manager-hero {
+    background: linear-gradient(135deg, #061d37, #073b73);
+    border-radius: 12px;
+    color: #fff;
+    padding: clamp(18px, 4vw, 34px);
+    border-bottom: 6px solid #ffd21f;
+    box-shadow: 0 16px 32px rgba(6, 29, 55, .18);
+  }
+  .manager-hero h2 {
+    margin: 0;
+    font-size: clamp(28px, 5vw, 48px);
+    line-height: 1.05;
+  }
+  .manager-hero p {
+    margin: 10px 0 0;
+    max-width: 820px;
+    color: rgba(255, 255, 255, .9);
+  }
+  .manager-filter {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+    gap: 12px;
+    align-items: end;
+  }
+  .manager-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .manager-card,
+  .manager-section,
+  .manager-row {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, .05);
+  }
+  .manager-card {
+    padding: 16px;
+    min-height: 122px;
+  }
+  .manager-card span {
+    display: block;
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 800;
+  }
+  .manager-card strong {
+    display: block;
+    margin-top: 8px;
+    color: var(--ink);
+    font-size: clamp(26px, 4vw, 38px);
+    line-height: 1;
+  }
+  .manager-card small {
+    display: block;
+    margin-top: 10px;
+    color: var(--muted);
+    font-weight: 700;
+    line-height: 1.35;
+  }
+  .manager-two {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 14px;
+  }
+  .manager-section {
+    padding: clamp(16px, 3vw, 22px);
+  }
+  .manager-section h2 {
+    margin: 0;
+    color: var(--ink);
+  }
+  .manager-section p {
+    margin: 6px 0 0;
+    color: var(--muted);
+  }
+  .manager-section-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    align-items: flex-start;
+    margin-bottom: 14px;
+  }
+  .manager-list {
+    display: grid;
+    gap: 10px;
+  }
+  .manager-row {
+    padding: 12px;
+    background: #f8fbff;
+  }
+  .manager-row strong,
+  .manager-row span {
+    display: block;
+  }
+  .manager-row span {
+    color: var(--muted);
+    margin-top: 4px;
+    font-weight: 700;
+  }
+  .manager-row.is-alert {
+    background: #fffbeb;
+    border-color: #facc15;
+  }
+  .manager-row.is-critical {
+    background: #fff1f2;
+    border-color: #fecaca;
+  }
+  .manager-table th,
+  .manager-table td {
+    white-space: nowrap;
+  }
+  .manager-table td:nth-child(3) {
+    white-space: normal;
+    min-width: 160px;
+  }
+  .manager-note {
+    background: #eef6ff;
+    border: 1px solid #cfe0f2;
+    border-left: 5px solid var(--blue-700);
+    border-radius: 10px;
+    padding: 12px 14px;
+    color: var(--muted);
+    font-weight: 800;
+    line-height: 1.35;
+    margin-bottom: 14px;
+  }
+  .manager-pallet-layout {
+    display: grid;
+    grid-template-columns: minmax(280px, .8fr) minmax(0, 1.2fr);
+    gap: 14px;
+    align-items: start;
+  }
+  .manager-cd-comparison {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+  }
+  .manager-cd-column {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: #f8fbff;
+    padding: 12px;
+    display: grid;
+    gap: 12px;
+  }
+  .manager-cd-column.is-806 {
+    background: #fff9dd;
+    border-color: #f1d46b;
+  }
+  .manager-cd-column h3 {
+    margin: 0;
+    color: var(--ink);
+  }
+  .manager-cd-kpi {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: #fff;
+    padding: 14px;
+    display: grid;
+    gap: 12px;
+  }
+  .manager-cd-kpi.is-806 {
+    background: #fff9dd;
+    border-color: #f1d46b;
+  }
+  .manager-cd-kpi-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  .manager-cd-kpi-head span {
+    color: var(--muted);
+    font-weight: 900;
+    text-transform: uppercase;
+    font-size: 13px;
+  }
+  .manager-cd-kpi-head strong {
+    display: block;
+    color: var(--ink);
+    font-size: clamp(34px, 5vw, 48px);
+    line-height: 1;
+    margin-top: 4px;
+  }
+  .manager-cd-kpi-head small {
+    color: var(--muted);
+    font-weight: 800;
+  }
+  .manager-mini-metrics {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .manager-mini-metrics div {
+    background: rgba(255,255,255,.72);
+    border: 1px solid rgba(11, 49, 88, .12);
+    border-radius: 8px;
+    padding: 8px;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 900;
+  }
+  .manager-mini-metrics strong {
+    display: block;
+    color: var(--ink);
+    font-size: 19px;
+    margin-top: 2px;
+  }
+  .manager-store-list {
+    display: grid;
+    gap: 8px;
+  }
+  .manager-store-row {
+    display: grid;
+    grid-template-columns: 88px minmax(0, 1fr) 96px;
+    gap: 10px;
+    align-items: center;
+    padding: 11px 12px;
+    background: #f8fbff;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+  .manager-store-row span {
+    color: var(--muted);
+    font-weight: 900;
+  }
+  .manager-store-row strong {
+    color: var(--ink);
+  }
+  .manager-store-row em {
+    justify-self: end;
+    font-style: normal;
+    font-weight: 900;
+    color: var(--blue-950);
+  }
+  .manager-store-row small {
+    grid-column: 2 / -1;
+    color: var(--muted);
+    font-weight: 800;
+  }
+  .manager-details {
+    margin-top: 14px;
+  }
+  .manager-details summary {
+    cursor: pointer;
+    color: var(--blue-950);
+    font-weight: 900;
+    padding: 10px 0;
+  }
+  .manager-guide {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: #fff;
+    padding: 0 12px;
+  }
+  .manager-guide .manager-note {
+    margin: 0 0 12px;
+  }
+  @media (max-width: 980px) {
+    .manager-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .manager-two { grid-template-columns: 1fr; }
+    .manager-pallet-layout { grid-template-columns: 1fr; }
+    .manager-cd-comparison { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 640px) {
+    .manager-grid,
+    .manager-filter { grid-template-columns: 1fr; }
+    .manager-card { min-height: auto; }
+    .manager-section-header { display: block; }
+    .manager-store-row { grid-template-columns: 1fr; }
+    .manager-store-row em { justify-self: start; }
+    .manager-mini-metrics { grid-template-columns: 1fr; }
+  }
+</style>
+
+<section class="manager-hero fusao-manager-hero">
+  <h2>{{ cd_escopo_label }}</h2>
+  <p>{% if historico_pallets.modo_unificado %}Visão 801-806 separada por blocos: compare os CDs sem misturar saldo, caminhões e lojas na mesma leitura.{% else %}Resumo do CD selecionado. Os cards mostram o que precisa de ação; detalhes e histórico ficam recolhidos para consulta.{% endif %}</p>
+</section>
+
+<form class="panel fusao-admin-panel" method="get" style="margin-top:16px">
+  <div class="manager-filter">
+    <div>
+      <label for="inicio">Data de</label>
+      <input class="field" id="inicio" name="inicio" type="date" value="{{ inicio_historico }}">
+    </div>
+    <div>
+      <label for="fim">Data até</label>
+      <input class="field" id="fim" name="fim" type="date" value="{{ fim_historico }}">
+    </div>
+    <div>
+      <label for="loja_hist">Loja</label>
+      <select class="field" id="loja_hist" name="loja_hist">
+        <option value="">Todas</option>
+        {% for loja in historico_pallets.lojas %}
+          <option value="{{ loja }}" {% if historico_pallets.loja_filtro == loja %}selected{% endif %}>{{ loja }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button class="btn" type="submit">Aplicar filtro</button>
+  </div>
+  {% if periodo_limite_aplicado %}
+    <p class="message warning" style="margin-top:12px">O período foi limitado automaticamente a 180 dias.</p>
+  {% endif %}
+</form>
+
+<div data-manager-live>
+<section class="manager-grid" style="margin-top:16px">
+  {% for card in resumo_cards %}
+    <article class="manager-card fusao-metric-card">
+      <span>{{ card.label }}</span>
+      <strong>{{ card.value }}</strong>
+      <small>{{ card.detail }}</small>
+    </article>
+  {% endfor %}
+</section>
+
+<details class="manager-details manager-guide">
+  <summary>Como ler este painel</summary>
+  <div class="manager-note">
+    <strong>Pallets disponíveis</strong> é o saldo atual menos o que a Frota já reservou. <strong>Expedido</strong> é histórico do período, portanto não deve ser subtraído novamente do saldo atual.
+  </div>
+</details>
+
+<div class="manager-two" style="margin-top:16px">
+  <section class="manager-section fusao-admin-panel">
+    <div class="manager-section-header">
+      <div>
+        <h2>Frota e expedição</h2>
+        <p>Cargas, check-lists, caminhões e retornos do período.</p>
+      </div>
+    </div>
+    <div class="manager-list">
+      {% for item in frota_cards %}
+        <div class="manager-row {% if item.alert %}is-alert{% endif %}">
+          <strong>{{ item.label }}</strong>
+          <span>{{ item.value }} - {{ item.detail }}</span>
+        </div>
+      {% endfor %}
+    </div>
+    <div class="manager-section-header" style="margin-top:14px">
+      <div>
+        <h3>Caminhões a caminho do CD</h3>
+        <p>Motorista, placa, loja e quantidade que ainda estão em aberto para carregamento ou chegada.</p>
+      </div>
+    </div>
+    <div class="manager-list">
+      {% for item in caminhoes_gerenciais %}
+        <div class="manager-row">
+          <strong>{{ item.motorista }} - {{ item.placa }}</strong>
+          <span>CD {{ item.cd }} - {{ item.total }} pallet(s) - {{ item.status }} - {{ item.data|date:"d/m/Y" }}</span>
+          <small>{{ item.lojas|join:" | " }}</small>
+        </div>
+      {% empty %}
+        <div class="manager-row">
+          <strong>Nenhum caminhão definido</strong>
+          <span>A Frota ainda não enviou motorista/placa para o período filtrado.</span>
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="manager-section fusao-admin-panel">
+    <div class="manager-section-header">
+      <div>
+        <h2>Colaboradores</h2>
+        <p>Férias, ausências e gargalos por setor.</p>
+      </div>
+    </div>
+    <div class="manager-list">
+      {% for item in colaboradores_cards %}
+        <div class="manager-row {% if item.alert %}is-alert{% endif %}">
+          <strong>{{ item.label }}</strong>
+          <span>{{ item.value }} - {{ item.detail }}</span>
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+</div>
+
+<div class="manager-two" style="margin-top:16px">
+  <section class="manager-section fusao-admin-panel">
+    <div class="manager-section-header">
+      <div>
+        <h2>Saldo por CD</h2>
+        <p>Quantidade que o sistema ainda considera livre, reservada e expedida por origem.</p>
+      </div>
+    </div>
+    <div class="manager-grid" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+      {% for item in cds %}
+        <article class="manager-card fusao-metric-card">
+          <span>CD {{ item.cd }}</span>
+          <strong>{{ item.saldo_livre }}</strong>
+          <small>{{ item.saldo }} saldo atual no sistema, {{ item.vinculado }} reservado(s), {{ item.expedido }} expedido(s) no período</small>
+        </article>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="manager-section fusao-admin-panel">
+    <div class="manager-section-header">
+      <div>
+        <h2>Equipamentos</h2>
+        <p>Disponibilidade e manutenção dos recursos operacionais.</p>
+      </div>
+    </div>
+    <div class="manager-list">
+      {% for item in equipamentos_cards %}
+        <div class="manager-row {% if item.alert %}is-alert{% endif %}">
+          <strong>{{ item.label }}</strong>
+          <span>{{ item.value }} - {{ item.detail }}</span>
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+</div>
+
+<section class="manager-section" style="margin-top:16px">
+  <div class="manager-section-header">
+    <div>
+      <h2>{% if historico_pallets.modo_unificado %}Saldo atual por CD e loja{% else %}Saldo atual por loja{% endif %}</h2>
+      <p>{% if historico_pallets.modo_unificado %}Visão atual separada por CD, sem misturar lojas do 801 com lojas do 806.{% else %}Quantidade atual que o sistema considera livre, reservada e expedida por loja.{% endif %}</p>
+    </div>
+    <div class="metric-pill">
+      {{ historico_pallets.saldo_atual_linhas|length }} loja(s)
+    </div>
+  </div>
+  <details class="manager-details manager-guide">
+    <summary>Como ler pallets da expedição</summary>
+    <div class="manager-note">
+      <strong>Saldo atual</strong> é o que existe agora no sistema. <strong>Reservado</strong> é o que a Frota já vinculou. <strong>Livre</strong> é o que ainda pode ser usado. O histórico por data continua recolhido no fim da tela.
+    </div>
+  </details>
+  {% if historico_pallets.modo_unificado %}
+    <div class="manager-cd-comparison">
+      {% for item in historico_pallets.saldo_atual_resumo_por_cd %}
+        <div class="manager-cd-column {% if item.cd == '806' %}is-806{% endif %}">
+          <h3 style="margin:0;color:var(--ink)">Bloco CD {{ item.cd }}</h3>
+          <article class="manager-cd-kpi {% if item.cd == '806' %}is-806{% endif %}">
+            <div class="manager-cd-kpi-head">
+              <div>
+                <span>CD {{ item.cd }}</span>
+                <strong>{{ item.livre }}</strong>
+                <small>livre agora</small>
+              </div>
+            </div>
+            <div class="manager-mini-metrics">
+              <div>Saldo atual<strong>{{ item.saldo }}</strong></div>
+              <div>Reservado<strong>{{ item.reservado }}</strong></div>
+              <div>Expedido<strong>{{ item.expedido }}</strong></div>
+            </div>
+          </article>
+          <div>
+            <h3>Lojas do CD {{ item.cd }}</h3>
+            <div class="manager-store-list">
+              {% for row in historico_pallets.saldo_atual_por_cd|get_item:item.cd %}
+                <div class="manager-store-row">
+                  <span>CD {{ row.cd }}</span>
+                  <strong>{{ row.loja }}</strong>
+                  <em>{{ row.livre }} livre(s)</em>
+                  <small>Saldo atual {{ row.saldo }} · reservado {{ row.reservado }} · expedido {{ row.expedido }}</small>
+                </div>
+              {% empty %}
+                <div class="manager-row">
+                  <strong>Nenhum saldo atual</strong>
+                  <span>Não há loja com saldo atual para este CD no filtro selecionado.</span>
+                </div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="manager-pallet-layout">
+      <div class="manager-list">
+        {% for item in historico_pallets.saldo_atual_resumo_por_cd %}
+          <article class="manager-cd-kpi {% if item.cd == '806' %}is-806{% endif %}">
+            <div class="manager-cd-kpi-head">
+              <div>
+                <span>CD {{ item.cd }}</span>
+                <strong>{{ item.livre }}</strong>
+                <small>livre agora</small>
+              </div>
+            </div>
+            <div class="manager-mini-metrics">
+              <div>Saldo atual<strong>{{ item.saldo }}</strong></div>
+              <div>Reservado<strong>{{ item.reservado }}</strong></div>
+              <div>Expedido<strong>{{ item.expedido }}</strong></div>
+            </div>
+          </article>
+        {% endfor %}
+      </div>
+      <div>
+        <h3 style="margin:0 0 10px;color:var(--ink)">Lojas com saldo atual</h3>
+        <div class="manager-store-list">
+          {% for row in historico_pallets.saldo_atual_linhas %}
+            <div class="manager-store-row">
+              <span>CD {{ row.cd }}</span>
+              <strong>{{ row.loja }}</strong>
+              <em>{{ row.livre }} livre(s)</em>
+              <small>Saldo atual {{ row.saldo }} · reservado {{ row.reservado }} · expedido {{ row.expedido }}</small>
+            </div>
+          {% empty %}
+            <div class="manager-row">
+              <strong>Nenhum saldo atual</strong>
+              <span>Não há loja com saldo atual para o filtro selecionado.</span>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  {% endif %}
+  <details class="manager-details">
+    <summary>Ver registros detalhados do período</summary>
+    <div class="table-wrap">
+      <table class="manager-table">
+        <thead>
+          <tr>
+            <th>Data</th>
+            <th>CD</th>
+            <th>Loja</th>
+            <th>Saldo informado</th>
+            <th>Expedido</th>
+            <th>Restante</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in historico_pallets.linhas %}
+            <tr>
+              <td>{{ row.data|date:"d/m/Y" }}</td>
+              <td>CD {{ row.cd }}</td>
+              <td>{{ row.loja }}</td>
+              <td>{{ row.saldo }}</td>
+              <td>{{ row.expedido }}</td>
+              <td>{{ row.restante }}</td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="6">Nenhum saldo ou expedição encontrado no período selecionado.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </details>
+</section>
+
+<section class="manager-section" style="margin-top:16px">
+  <div class="manager-section-header">
+    <div>
+      <h2>Atenção gerencial</h2>
+      <p>Itens que merecem olhar rápido antes de cobrar a equipe.</p>
+    </div>
+  </div>
+  <div class="manager-list">
+    {% for alerta in alertas_gerenciais %}
+      <div class="manager-row {% if alerta.nivel == 'critico' %}is-critical{% else %}is-alert{% endif %}">
+        <strong>{{ alerta.titulo }}</strong>
+        <span>{{ alerta.texto }}</span>
+      </div>
+    {% empty %}
+      <div class="manager-row">
+        <strong>Operação sem alerta crítico</strong>
+        <span>Nenhum ponto sensível encontrado para a data selecionada.</span>
+      </div>
+    {% endfor %}
+  </div>
+</section>
+ </div>
+<script>
+  (function () {
+    var liveArea = document.querySelector("[data-manager-live]");
+    if (!liveArea) return;
+    var lastInteractionAt = Date.now();
+    ["input", "change", "keydown", "pointerdown", "submit"].forEach(function (eventName) {
+      document.addEventListener(eventName, function () {
+        lastInteractionAt = Date.now();
+      }, true);
+    });
+    setInterval(function () {
+      var active = document.activeElement;
+      var isEditing = active && ["INPUT", "TEXTAREA", "SELECT"].indexOf(active.tagName) !== -1;
+      if (document.hidden || isEditing || Date.now() - lastInteractionAt < 8000) return;
+      window.modeloFetchWithTimeout(window.location.href, {
+        cache: "no-store",
+        headers: {"X-Requested-With": "XMLHttpRequest"}
+      }, 7000)
+        .then(function (response) { return response.ok ?response.text() : ""; })
+        .then(function (html) {
+          if (!html) return;
+          var doc = new DOMParser().parseFromString(html, "text/html");
+          var fresh = doc.querySelector("[data-manager-live]");
+          if (fresh) liveArea.innerHTML = fresh.innerHTML;
+        })
+        .catch(function () {});
+    }, 15000);
+  })();
+</script>
+{% endblock %}
