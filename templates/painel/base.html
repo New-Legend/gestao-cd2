@@ -4880,6 +4880,7 @@
     body.fusao-cd .message.error { background: #fee2e2; color: #d71920; border-color: #fecaca; }
     body.fusao-cd .nav-heading::after,
     body.fusao-cd .nav-icon { color: #ffd21f; }
+    body.fusao-cd .nav-icon .fa-solid { font-size: 13px; }
     body.fusao-cd .panel,
     body.fusao-cd .card,
     body.fusao-cd .compact-panel,
@@ -5492,23 +5493,16 @@
           </details>
         {% endfor %}
         {% if can_tms_krill and not is_motorista %}
-          <details class="nav-group" data-nav-group="TMS" {% if krill_nav_open %}open{% endif %}>
-            <summary class="nav-heading">TMS</summary>
-            <div class="nav-items">
-              <a class="nav-link" href="{% url 'tms_expedicao' %}"><span class="nav-icon">EX</span>Central de Expedição</a>
-              <a class="nav-link" href="{% url 'tms_dashboard' %}"><span class="nav-icon">DB</span>Dashboard TMS</a>
-              <a class="nav-link" href="{% url 'tms_romaneios' %}"><span class="nav-icon">RO</span>Romaneios</a>
-              <a class="nav-link" href="{% url 'tms_acompanhamento' %}"><span class="nav-icon">AC</span>Acompanhamento</a>
-              <a class="nav-link" href="{% url 'tms_executar' %}"><span class="nav-icon">OT</span>Executar OT</a>
-              <a class="nav-link" href="{% url 'tms_divergencias' %}"><span class="nav-icon">DV</span>Divergências</a>
-              <a class="nav-link" href="{% url 'tms_rotas' %}"><span class="nav-icon">RT</span>Rotas</a>
-              <a class="nav-link" href="{% url 'tms_capacidade' %}"><span class="nav-icon">CP</span>Capacidade</a>
-              <a class="nav-link" href="{% url 'tms_torre' %}"><span class="nav-icon">TV</span>Torre de Controle</a>
-              <a class="nav-link" href="{% url 'wms_mapa' %}"><span class="nav-icon">WM</span>Mapa do armazém</a>
-              <a class="nav-link" href="{% url 'yms_patio' %}"><span class="nav-icon">YM</span>Pátio e docas</a>
-              <a class="nav-link" href="{% url 'dashboard_indicadores' %}"><span class="nav-icon">IN</span>Indicadores</a>
-            </div>
-          </details>
+          {% for group in gestao_cd_grupos %}
+            <details class="nav-group" data-nav-group="{{ group.title }}" {% if group.open %}open{% endif %}>
+              <summary class="nav-heading">{{ group.title }}</summary>
+              <div class="nav-items">
+                {% for link in group.links %}
+                  <a class="nav-link{% if link.active %} active{% endif %}" href="{{ link.href }}"><span class="nav-icon" aria-hidden="true"><i class="fa-solid {{ link.icon }}"></i></span>{{ link.label }}</a>
+                {% endfor %}
+              </div>
+            </details>
+          {% endfor %}
         {% endif %}
         {% if can_frota_hub and not is_motorista %}
           <details class="nav-group" data-nav-group="Frota" {% if request.resolver_match.url_name == 'frota_hub' %}data-active="true" open{% endif %}>

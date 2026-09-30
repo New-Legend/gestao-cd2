@@ -2774,6 +2774,8 @@ def user_request_notifications(user):
 
 
 def context_base(request):
+    from .gestao_cd_nav import grupos_menu
+
     cd_atual = current_cd(request)
     profile = ensure_profile(request.user) if getattr(request.user, "is_authenticated", False) else None
     trial_state = getattr(request, "pilot_trial_state", None) or pilot_trial_state()
@@ -2837,7 +2839,12 @@ def context_base(request):
         "can_system_features": can_system_features,
         "can_manage_push": can_push_admin,
         "can_tms_expedicao": user_has_perm(request.user, "tms_expedicao"),
-        "can_tms_krill": user_has_perm(request.user, "tms_krill") or user_has_perm(request.user, "tms_expedicao"),
+        "can_tms_krill": (
+            user_has_perm(request.user, "tms_krill")
+            or user_has_perm(request.user, "tms_expedicao")
+            or user_has_perm(request.user, "painel")
+        ),
+        "gestao_cd_grupos": grupos_menu(request.path),
         "krill_nav_open": request.path.startswith(("/tms/", "/wms/", "/yms/", "/patio-docas", "/dashboard/")),
         "show_tools_menu": any(
             [
