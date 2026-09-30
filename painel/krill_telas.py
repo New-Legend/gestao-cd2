@@ -134,6 +134,7 @@ def blank_screen(**kwargs):
         "show_map": False,
         "map_trips": [],
         "map_zones": [],
+        "extra_html": "",
     }
     base.update(kwargs)
     return base

@@ -42,6 +42,36 @@
   .krill-slot form, .krill-inline form { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
   .krill-map { height:420px; border-radius:12px; margin-bottom:14px; background:#e2e8f0; }
   .krill-empty { padding:18px; color:#627084; }
+  .load-plan-panel { margin-bottom:14px; }
+  .load-plan-panel > button, .load-plan-open {
+    display:inline-flex; align-items:center; gap:8px; min-height:36px; margin-bottom:12px;
+    padding:0 12px; border:0; border-radius:10px; background:#061d37; color:#fff; font-weight:700; cursor:pointer;
+  }
+  .load-plan-summary { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin-bottom:18px; }
+  .load-plan-summary span { display:grid; gap:4px; padding:12px 14px; border:1px solid #cbd5e1; border-radius:10px; background:#f8fafc; }
+  .load-plan-summary small { color:#64748b; font-size:11px; font-weight:800; text-transform:uppercase; }
+  .load-plan-summary strong { color:#020617; font-size:18px; }
+  .load-plan-truck { padding:14px; border:3px solid #020617; border-radius:22px; background:#e2e8f0; }
+  .load-plan-cab, .load-plan-door { display:grid; place-items:center; gap:3px; text-align:center; font-size:11px; font-weight:900; letter-spacing:.04em; text-transform:uppercase; }
+  .load-plan-cab { margin:0 auto 10px; min-height:48px; padding:8px 22px; border:2px solid #020617; border-radius:24px 24px 10px 10px; background:#020617; color:#fff; width:min(260px,76%); }
+  .load-plan-cab i { width:56px; height:9px; border:1px solid #94a3b8; border-radius:9px; background:#dbeafe; }
+  .load-plan-body { padding:10px; border:2px solid #334155; border-radius:8px; background:repeating-linear-gradient(90deg,#cbd5e1 0,#cbd5e1 1px,transparent 1px,transparent 50%); }
+  .load-plan-door { margin:10px auto 0; min-height:34px; padding:6px 14px; border:2px dashed #64748b; border-radius:6px; color:#334155; background:#f8fafc; width:min(260px,76%); }
+  .load-plan-door i { width:74px; border-top:2px solid #64748b; }
+  .load-plan-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+  .load-plan-slot { min-height:94px; display:grid; align-content:space-between; gap:7px; padding:10px; border:1px solid #64748b; border-radius:5px; background:#fff; color:#0f172a; }
+  .load-plan-slot.is-empty { border-style:dashed; background:#e2e8f0; color:#64748b; }
+  .load-plan-slot-head, .load-plan-slot-meta { display:flex; justify-content:space-between; gap:8px; align-items:center; }
+  .load-plan-slot-head { font-size:11px; font-weight:900; }
+  .load-plan-slot-store { font-size:15px; font-weight:900; line-height:1.12; }
+  .load-plan-slot-meta { font-size:11px; color:#475569; font-weight:700; }
+  .load-plan-details { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px; margin-top:18px; }
+  .load-plan-details h3 { margin:0 0 8px; color:#020617; font-size:15px; }
+  .load-plan-details ol { display:grid; gap:7px; margin:0; padding-left:20px; color:#334155; font-size:13px; }
+  .load-plan-status { margin:0 0 12px; color:#334155; font-weight:700; }
+  @media (max-width:640px) {
+    .load-plan-summary, .load-plan-details { grid-template-columns:1fr; }
+  }
 </style>
 
 <section class="krill-hero">
@@ -140,6 +170,8 @@
   <button type="submit">{{ screen.secondary_form.submit }}</button>
 </form>
 {% endif %}
+
+{% if screen.extra_html %}{{ screen.extra_html|safe }}{% endif %}
 
 {% if screen.docks %}
 <section class="krill-docks" aria-label="Docas">

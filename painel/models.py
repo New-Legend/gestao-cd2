@@ -1781,6 +1781,9 @@ class TmsViagem(models.Model):
     status_logistico = models.CharField(max_length=40, choices=STATUS_LOGISTICO, default="em_patio")
     peso_total_kg = models.FloatField(default=0)
     volume_total_m3 = models.FloatField(default=0)
+    tipo_operacao = models.CharField(max_length=40, blank=True, default="")
+    status_transferencia = models.CharField(max_length=40, blank=True, default="")
+    destino_cd = models.CharField(max_length=7, blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -1802,6 +1805,25 @@ class TmsViagemParada(models.Model):
     class Meta:
         db_table = "tms_viagem_paradas"
         ordering = ["ordem", "id"]
+
+
+class FrotaDemoSimulacao(models.Model):
+    """Waypoint de demonstração TST-0000 — espelho de frota_demo_simulacoes."""
+
+    cd_codigo = models.CharField(max_length=7)
+    numero_romaneio = models.CharField(max_length=40, default="TST-0000")
+    status = models.CharField(max_length=30, default="em_carregamento")
+    hard_lock = models.BooleanField(default=False)
+    notas_incluidas = models.PositiveIntegerField(default=0)
+    notas_futuras = models.PositiveIntegerField(default=0)
+    waypoint_atual = models.CharField(max_length=20, default="doca")
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "frota_demo_simulacoes"
+        constraints = [
+            models.UniqueConstraint(fields=["cd_codigo", "numero_romaneio"], name="frota_demo_cd_numero"),
+        ]
 
 
 class TmsGeofenceEvento(models.Model):

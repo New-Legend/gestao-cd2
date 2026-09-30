@@ -1,32 +1,40 @@
 """Peças do Worker que passam a rodar dentro do Django do Gestão CD 2.
 
 Google Directions, stream de indicadores, carga XML no mesmo fluxo do e-mail
-cargas@wbjp.com.br, compositor de viagem e o download do app do motorista.
+cargas@wbjp.com.br, compositor de viagem, mapa 2D do baú, posição do
+dispositivo, simulação da frota e transição de transferência.
 """
 
 from __future__ import annotations
 
 import io
 import json
+import math
 import os
 import re
 import urllib.error
 import urllib.parse
 import urllib.request
+import uuid
 import zipfile
 from collections import defaultdict
 
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
-from django.db.models import Sum
+from django.db.models import F, Q, Sum
 from django.http import HttpResponse, JsonResponse, StreamingHttpResponse
 from django.shortcuts import redirect
 from django.utils import timezone
+from django.utils.dateparse import parse_datetime
+from django.utils.html import escape
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
 from .models import (
+    AuditLog,
     ChamadoSaldo,
+    FrotaDemoSimulacao,
+    LogisticaDispositivo,
     PessoaTurno,
     Separacao,
     TmsGeofence,
@@ -34,6 +42,7 @@ from .models import (
     TmsRascunhoNfe,
     TmsRomaneio,
     TmsRota,
+    TmsTelemetria,
     TmsVeiculo,
     TmsViagem,
     TmsViagemParada,
@@ -445,6 +454,7 @@ def _planejar(veiculo: TmsVeiculo, romaneios: list[TmsRomaneio]) -> dict:
     slots = []
     esquerda = 0.0
     direita = 0.0
+    total = len(romaneios)
     for indice, row in enumerate(romaneios, start=1):
         lado = "left" if indice % 2 else "right"
         nota = row.nfes.order_by("id").first()
@@ -455,14 +465,16 @@ def _planejar(veiculo: TmsVeiculo, romaneios: list[TmsRomaneio]) -> dict:
             direita += peso_row
         slots.append(
             {
-                "position": indice,
+                "position": (indice + 1) // 2,
                 "side": lado,
                 "empty": False,
                 "loadingOrder": indice,
+                "deliveryOrder": total - indice + 1,
                 "storeCode": _loja_codigo(row.loja_destino),
                 "storeName": row.loja_destino,
                 "estimatedWeightKg": peso_row,
                 "notaFiscal": nota.numero if nota else "",
+                "palletCount": int(row.total_paletes or 0),
             }
         )
     override = os.environ.get("TMS_ALLOW_PALLET_OVERRIDE") == "1" and paletes > int(veiculo.capacidade_max_pallets or 0)
@@ -522,7 +534,7 @@ def _compor(payload: dict, transferencia: bool, username: str) -> dict:
         return {"ok": False, "error": "Peso acima do limite do veículo.", "status": 422}
     if veiculo.capacidade_max_pallets and paletes > veiculo.capacidade_max_pallets and not plano["capacityOverrideApplied"]:
         return {"ok": False, "error": "Capacidade de paletes excedida.", "status": 422}
-    loja = destino if transferencia else (romaneios[0].loja_destino or "")
+    loja = f"CD {destino}" if transferencia else (romaneios[0].loja_destino or "")
     viagem = TmsViagem.objects.create(
         motorista_nome=motorista,
         veiculo_id=veiculo.placa,
@@ -530,6 +542,9 @@ def _compor(payload: dict, transferencia: bool, username: str) -> dict:
         loja_nome=(loja or "")[:160],
         origem_cd=origem[:7],
         cd_atual=origem[:7],
+        destino_cd=destino[:7] if transferencia else "",
+        tipo_operacao="transferencia_cd" if transferencia else "entrega",
+        status_transferencia="embarcado" if transferencia else "",
         status="atribuida",
         status_logistico="em_patio",
         peso_total_kg=peso,
@@ -546,8 +561,20 @@ def _compor(payload: dict, transferencia: bool, username: str) -> dict:
         row.placa = veiculo.placa
         row.motorista = motorista
         row.atualizado_por = username[:160]
-        row.save(update_fields=["placa", "motorista", "atualizado_por", "updated_at"])
-    return {"ok": True, "viagemId": viagem.pk, "notice": f"Composição confirmada na viagem {viagem.pk}."}
+        campos = ["placa", "motorista", "atualizado_por", "updated_at"]
+        if transferencia and row.status not in {"cancelado", "finalizado"}:
+            row.status = "em_transferencia"
+            campos.append("status")
+        row.save(update_fields=campos)
+    aviso = f"Composição confirmada na viagem {viagem.pk}."
+    if transferencia:
+        aviso = f"Transferência #{viagem.pk} embarcada e romaneios bloqueados para nova composição."
+    return {
+        "ok": True,
+        "viagemId": viagem.pk,
+        "status": "embarcado" if transferencia else "atribuida",
+        "notice": aviso,
+    }
 
 
 @csrf_exempt
@@ -561,7 +588,7 @@ def api_carga_mista(request):
     if payload is None:
         return JsonResponse({"ok": False, "error": "JSON inválido."}, status=400)
     resultado = _compor(payload, False, k.username(request.user))
-    status = resultado.pop("status", 200)
+    status = resultado.pop("status") if isinstance(resultado.get("status"), int) else 200
     return JsonResponse(resultado, status=status)
 
 
@@ -576,7 +603,7 @@ def api_transferencia(request):
     if payload is None:
         return JsonResponse({"ok": False, "error": "JSON inválido."}, status=400)
     resultado = _compor(payload, True, k.username(request.user))
-    status = resultado.pop("status", 200)
+    status = resultado.pop("status") if isinstance(resultado.get("status"), int) else 200
     return JsonResponse(resultado, status=status)
 
 
@@ -609,6 +636,7 @@ def tms_viagens(request):
             eyebrow="TMS",
             lead="A mesma composição do Gestão CD: uma placa, um motorista e os romaneios livres. Transferência pede dois CDs.",
             actions=[{"href": "/tms/viagens/vincular/", "label": "Vincular"}, {"href": "/tms/romaneios/", "label": "Romaneios"}],
+            extra_html=_html_compositor_bau(),
             cards=[{"label": "Livres", "value": len(romaneios), "hint": "romaneios sem viagem"}, {"label": "Veículos", "value": len(veiculos), "hint": "placas ativas"}],
             form={
                 "action": "/tms/viagens/",
@@ -644,6 +672,581 @@ def tms_viagens(request):
             ],
         ),
     )
+
+
+def _fmt_num(valor) -> str:
+    numero = float(valor or 0)
+    if abs(numero - round(numero)) < 0.05:
+        texto = f"{int(round(numero)):,}"
+    else:
+        texto = f"{numero:,.1f}"
+    return texto.replace(",", "X").replace(".", ",").replace("X", ".")
+
+
+def _slots_ordenados(plano: dict) -> list[dict]:
+    slots = list((plano.get("plan") or {}).get("slots") or [])
+    return sorted(slots, key=lambda slot: (int(slot.get("position") or 0), 0 if slot.get("side") == "left" else 1))
+
+
+def html_planta_bau(plano: dict, placa: str = "") -> str:
+    slots = _slots_ordenados(plano)
+    totais = plano.get("totals") or {}
+    veiculo = plano.get("vehicle") or {}
+    ultima = max((int(slot.get("position") or 0) for slot in slots), default=0)
+    placas = escape(placa or veiculo.get("plate") or "Veículo")
+    cartoes = []
+    for slot in slots:
+        vazio = bool(slot.get("empty"))
+        lado = "Esq." if slot.get("side") == "left" else "Dir."
+        loja = "Posição livre" if vazio else f"{slot.get('storeCode') or ''} · {slot.get('storeName') or ''}"
+        meta = ""
+        if not vazio:
+            meta = f"{_fmt_num(slot.get('estimatedWeightKg'))} kg · NF-e {slot.get('notaFiscal') or '—'} · entrega {slot.get('deliveryOrder') or '—'}ª"
+        cartoes.append(
+            "<article class=\"load-plan-slot{vazio}\">"
+            "<div class=\"load-plan-slot-head\"><span>P{pos} · {lado}</span><span>{estado}</span></div>"
+            "<strong class=\"load-plan-slot-store\">{loja}</strong>"
+            "<div class=\"load-plan-slot-meta\">{meta}</div></article>".format(
+                vazio=" is-empty" if vazio else "",
+                pos=int(slot.get("position") or 0),
+                lado=lado,
+                estado="Livre" if vazio else f"Carga {slot.get('loadingOrder') or ''}",
+                loja=escape(loja),
+                meta=escape(meta),
+            )
+        )
+    entrega = sorted([slot for slot in slots if not slot.get("empty")], key=lambda slot: int(slot.get("deliveryOrder") or 0))
+    carga = sorted([slot for slot in slots if not slot.get("empty")], key=lambda slot: int(slot.get("loadingOrder") or 0))
+    itens_entrega = "".join(
+        f"<li><strong>{escape(str(slot.get('deliveryOrder')))}ª · {escape(str(slot.get('storeCode') or ''))} - {escape(str(slot.get('storeName') or ''))}</strong>"
+        "<small>Descarregar nesta ordem, a partir da porta.</small></li>"
+        for slot in entrega
+    ) or "<li>Nenhuma carga posicionada.</li>"
+    itens_carga = "".join(
+        f"<li><strong>{escape(str(slot.get('loadingOrder')))}ª · {escape(str(slot.get('storeCode') or ''))} - {escape(str(slot.get('storeName') or ''))}</strong>"
+        f"<small>{escape(_fmt_num(slot.get('palletCount')))} paletes · {escape(_fmt_num(slot.get('estimatedWeightKg')))} kg · entra primeiro junto à cabine.</small></li>"
+        for slot in carga
+    ) or "<li>Nenhuma carga posicionada.</li>"
+    return (
+        "<div class=\"load-plan-summary\">"
+        f"<span><small>Ocupação</small><strong>{escape(_fmt_num(totais.get('pallets')))} / {escape(_fmt_num(veiculo.get('capacityPallets')))} paletes</strong></span>"
+        f"<span><small>Peso total</small><strong>{escape(_fmt_num(totais.get('weightKg')))} kg</strong></span>"
+        f"<span><small>Diferença lateral</small><strong>{escape(_fmt_num((plano.get('plan') or {}).get('balanceDifferenceKg')))} kg</strong></span>"
+        "</div>"
+        f"<section class=\"load-plan-truck\" aria-label=\"Planta do baú do {placas}\">"
+        "<div class=\"load-plan-cab\"><i aria-hidden=\"true\"></i><strong>Cabine do motorista</strong></div>"
+        "<div class=\"load-plan-body\"><div class=\"load-plan-grid\">"
+        + ("".join(cartoes) or "<article class=\"load-plan-slot is-empty\"><strong class=\"load-plan-slot-store\">Baú vazio</strong></article>")
+        + "</div></div>"
+        f"<div class=\"load-plan-door\"><i aria-hidden=\"true\"></i><strong>Portas do baú · última posição P{ultima or '—'}</strong></div>"
+        "</section>"
+        "<section class=\"load-plan-details\"><div><h3>Sequência de entrega</h3><ol>"
+        f"{itens_entrega}</ol></div><div><h3>Regra de carregamento</h3><ol>{itens_carga}</ol></div></section>"
+    )
+
+
+def _html_compositor_bau() -> str:
+    return """
+<section class="krill-panel load-plan-panel" data-bau-painel>
+  <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:end">
+    <div>
+      <h3>Mapa 2D do baú</h3>
+      <p class="load-plan-status" data-bau-status>Selecione a placa e os romaneios. P1 fica junto à cabine; a última posição, junto à porta.</p>
+    </div>
+    <button class="load-plan-open" type="button" data-bau-abrir>Montar mapa 2D</button>
+  </div>
+  <div data-bau-planta></div>
+</section>
+<script>
+(function () {
+  var painel = document.querySelector("[data-bau-painel]");
+  var botao = document.querySelector("[data-bau-abrir]");
+  if (!painel || !botao) return;
+  function token() {
+    var campo = document.querySelector("[name=csrfmiddlewaretoken]");
+    return campo ? campo.value : "";
+  }
+  function selecionados() {
+    var lista = document.querySelector(".krill-form select[name=romaneio_id]");
+    if (!lista) return [];
+    return Array.prototype.filter.call(lista.options, function (opcao) { return opcao.selected; }).map(function (opcao) { return Number(opcao.value); });
+  }
+  botao.addEventListener("click", function () {
+    var formulario = document.querySelector(".krill-form");
+    var placa = formulario ? (formulario.querySelector("[name=placa]") || {}).value || "" : "";
+    var status = painel.querySelector("[data-bau-status]");
+    var planta = painel.querySelector("[data-bau-planta]");
+    status.textContent = "Calculando as posições no baú...";
+    botao.disabled = true;
+    fetch("/api/viagens/planejamento-carga", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: {"Content-Type": "application/json", "Accept": "application/json", "X-CSRFToken": token()},
+      body: JSON.stringify({veiculo_id: placa, romaneio_ids: selecionados()})
+    }).then(function (resposta) {
+      return resposta.json().then(function (payload) {
+        if (!resposta.ok || !payload.ok) throw new Error(payload.error || "Não foi possível montar o mapa.");
+        return payload;
+      });
+    }).then(function (payload) {
+      return fetch("/tms/viagens/mapa-previa/", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {"Content-Type": "application/json", "Accept": "text/html", "X-CSRFToken": token()},
+        body: JSON.stringify(payload)
+      }).then(function (resposta) { return resposta.text(); });
+    }).then(function (html) {
+      planta.innerHTML = html;
+      status.textContent = "Vista superior do baú. P1 junto à cabine.";
+    }).catch(function (erro) {
+      status.textContent = erro && erro.message ? erro.message : "Falha ao montar o mapa.";
+    }).finally(function () { botao.disabled = false; });
+  });
+})();
+</script>
+"""
+
+
+@csrf_exempt
+@login_required
+@require_http_methods(["POST"])
+def tms_mapa_previa(request):
+    k = _k()
+    if not k.allowed(request.user):
+        return HttpResponse("Sem permissão para ver o mapa do baú.", status=403)
+    payload = _json_body(request)
+    if not payload or not payload.get("plan"):
+        return HttpResponse("Mapa indisponível.", status=422)
+    placa = str((payload.get("vehicle") or {}).get("plate") or "")
+    return HttpResponse(html_planta_bau(payload, placa))
+
+
+def _plano_da_viagem(viagem: TmsViagem) -> dict:
+    paradas = list(viagem.paradas.order_by("ordem", "id"))
+    ids = [parada.romaneio_id for parada in paradas if parada.romaneio_id]
+    romaneios = list(TmsRomaneio.objects.filter(pk__in=ids))
+    ordem = {pk: indice for indice, pk in enumerate(ids)}
+    romaneios.sort(key=lambda row: ordem.get(row.pk, 999))
+    veiculo = _veiculo(viagem.veiculo_id)
+    if not veiculo:
+        veiculo = TmsVeiculo(
+            id="avulso",
+            placa=viagem.veiculo_id or "—",
+            capacidade_max_kg=0,
+            capacidade_max_pallets=0,
+            capacidade_max_m3=0,
+            ativo=True,
+        )
+    if not romaneios:
+        return {
+            "ok": True,
+            "totals": {"pallets": 0, "weightKg": 0},
+            "vehicle": {"plate": veiculo.placa, "capacityPallets": veiculo.capacidade_max_pallets, "maxWeightKg": veiculo.capacidade_max_kg},
+            "plan": {"slots": [], "balanceDifferenceKg": 0},
+        }
+    return _planejar(veiculo, romaneios)
+
+
+@login_required
+def tms_viagem_mapa(request, pk):
+    k = _k()
+    blocked = k._gate(request, "Mapa do baú")
+    if blocked:
+        return blocked
+    viagem = TmsViagem.objects.filter(pk=pk).first()
+    if not viagem:
+        return k.render_screen(
+            request,
+            k.blank_screen(title="Viagem não encontrada", error="Esta viagem pode ter sido encerrada ou o identificador não existe.", actions=[{"href": "/tms/viagens/", "label": "Compor viagem"}]),
+            status=404,
+        )
+    plano = _plano_da_viagem(viagem)
+    return k.render_screen(
+        request,
+        k.blank_screen(
+            title=f"Mapa 2D · viagem #{viagem.pk}",
+            eyebrow="TMS / Veículo",
+            lead="Vista superior do baú. P1 fica junto à cabine; a última posição, junto à porta.",
+            actions=[{"href": f"/tms/viagens/{viagem.pk}/", "label": "Voltar à viagem"}, {"href": "/tms/viagens/", "label": "Compor viagem"}],
+            extra_html=html_planta_bau(plano, viagem.veiculo_id),
+        ),
+    )
+
+
+def _haversine(lat1, lng1, lat2, lng2) -> float:
+    radianos = math.radians
+    delta_lat = radianos(lat2 - lat1)
+    delta_lng = radianos(lng2 - lng1)
+    a = math.sin(delta_lat / 2) ** 2 + math.cos(radianos(lat1)) * math.cos(radianos(lat2)) * math.sin(delta_lng / 2) ** 2
+    return 6371000 * 2 * math.atan2(math.sqrt(a), math.sqrt(max(0.0, 1 - a)))
+
+
+def _dispositivo_ativo(request):
+    autorizacao = request.headers.get("Authorization") or ""
+    token = autorizacao[7:].strip() if autorizacao.lower().startswith("bearer ") else ""
+    token = token or (request.headers.get("X-Device-Id") or "").strip()
+    if not token:
+        return None
+    return LogisticaDispositivo.objects.filter(identificador=token, ativo=True).first()
+
+
+def _numero(valor):
+    if isinstance(valor, bool) or not isinstance(valor, (int, float, str)):
+        return None
+    bruto = str(valor).strip().replace(",", ".")
+    if not re.fullmatch(r"-?\d+(?:\.\d+)?", bruto):
+        return None
+    try:
+        return float(bruto)
+    except ValueError:
+        return None
+
+
+def _inteiro_positivo(valor):
+    numero = _numero(valor)
+    if numero is None or not numero.is_integer() or numero <= 0:
+        return None
+    return int(numero)
+
+
+def _quando(valor):
+    if not isinstance(valor, str) or not valor.strip():
+        return None
+    quando = parse_datetime(valor.strip().replace(" ", "T"))
+    if quando is None:
+        return None
+    if timezone.is_naive(quando):
+        quando = timezone.make_aware(quando, timezone.get_current_timezone())
+    return quando
+
+
+def _nome_motorista_localizacao(payload: dict, dispositivo: LogisticaDispositivo) -> tuple[str, str]:
+    nome = str(payload.get("motorista") or payload.get("driverName") or payload.get("motorista_nome") or "").strip()
+    bruto = payload.get("driverId", payload.get("motoristaId"))
+    if bruto is not None and not str(bruto).strip().isdigit():
+        nome = nome or str(bruto).strip()
+    if dispositivo.motorista and nome and nome.casefold() != dispositivo.motorista.casefold():
+        return "", "O dispositivo não pertence ao motorista informado."
+    if bruto is not None and str(bruto).strip().isdigit() and dispositivo.motorista and dispositivo.motorista.strip().isdigit():
+        if str(bruto).strip() != dispositivo.motorista.strip():
+            return "", "O dispositivo não pertence ao motorista informado."
+    resolvido = nome or (dispositivo.motorista or "")
+    if not resolvido and bruto is not None and str(bruto).strip().isdigit():
+        usuario = User.objects.filter(pk=int(str(bruto).strip())).first()
+        if usuario:
+            resolvido = (usuario.get_full_name() or usuario.username).strip()
+            if dispositivo.motorista and resolvido.casefold() != dispositivo.motorista.casefold():
+                return "", "O dispositivo não pertence ao motorista informado."
+    if not resolvido:
+        return "", "driverId inválido."
+    return resolvido, ""
+
+
+def _viagem_ativa(motorista: str, viagem_id):
+    consulta = TmsViagem.objects.exclude(status__in=["finalizada", "cancelada"]).exclude(status_logistico="retornou_base")
+    if motorista:
+        consulta = consulta.filter(motorista_nome__iexact=motorista)
+    if viagem_id:
+        return consulta.filter(pk=viagem_id).first()
+    return consulta.order_by("-id").first()
+
+
+def _coordenada_parada(parada: TmsViagemParada, viagem: TmsViagem):
+    romaneio = TmsRomaneio.objects.filter(pk=parada.romaneio_id).first() if parada.romaneio_id else None
+    codigo = _loja_codigo(romaneio.loja_destino) if romaneio else ""
+    nome = (romaneio.loja_destino if romaneio else "") or codigo
+    rota = None
+    if codigo:
+        rota = TmsRota.objects.filter(ativa=True, loja_codigo__iexact=codigo).exclude(latitude=None).exclude(longitude=None).first()
+    ponto = _coordenada(rota.latitude, rota.longitude) if rota else None
+    if ponto:
+        return ponto["latitude"], ponto["longitude"], 300, f"rota-{codigo}", nome or codigo
+    cerca = None
+    if codigo:
+        cerca = TmsGeofence.objects.filter(ativo=True, tipo="LOJA").filter(Q(nome__icontains=codigo) | Q(pk__icontains=codigo)).first()
+    if not cerca and viagem.destino_cd:
+        digitos = _digitos(viagem.destino_cd)[-3:]
+        cerca = TmsGeofence.objects.filter(pk=f"geo_cd_{digitos}", ativo=True).first()
+    if cerca:
+        return cerca.latitude, cerca.longitude, int(cerca.raio_metros or 300), cerca.pk, cerca.nome
+    return None
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def api_driver_location(request):
+    dispositivo = _dispositivo_ativo(request)
+    if not dispositivo:
+        return JsonResponse({"ok": False, "error": "Dispositivo não autorizado ou revogado."}, status=401)
+    payload = _json_body(request)
+    if payload is None:
+        return JsonResponse({"ok": False, "error": "Informe um payload JSON de telemetria."}, status=422)
+    motorista, erro_motorista = _nome_motorista_localizacao(payload, dispositivo)
+    if erro_motorista:
+        status = 403 if "não pertence" in erro_motorista else 422
+        return JsonResponse({"ok": False, "error": erro_motorista}, status=status)
+    bruto_viagem = payload.get("tripId", payload.get("viagemId", None))
+    viagem_id = None
+    if bruto_viagem not in (None, ""):
+        viagem_id = _inteiro_positivo(bruto_viagem)
+        if not viagem_id:
+            return JsonResponse({"ok": False, "error": "tripId inválido."}, status=422)
+    latitude = _numero(payload.get("latitude", payload.get("lat")))
+    longitude = _numero(payload.get("longitude", payload.get("lng")))
+    precisao = _numero(payload.get("accuracy", payload.get("precisao", payload.get("precisaoMetros", 0))))
+    if precisao is None:
+        precisao = 0
+    quando = _quando(payload.get("timestamp", payload.get("capturedAt", payload.get("ocorreuEm"))))
+    if latitude is None or not (-90 <= latitude <= 90):
+        return JsonResponse({"ok": False, "error": "latitude inválida."}, status=422)
+    if longitude is None or not (-180 <= longitude <= 180):
+        return JsonResponse({"ok": False, "error": "longitude inválida."}, status=422)
+    if precisao < 0 or precisao > 1000:
+        return JsonResponse({"ok": False, "error": "precisão do GPS inválida."}, status=422)
+    if quando is None:
+        return JsonResponse({"ok": False, "error": "timestamp inválido."}, status=422)
+    viagem = _viagem_ativa(motorista, viagem_id)
+    if not viagem:
+        mensagem = "A viagem informada não está ativa para este motorista." if viagem_id else "Nenhuma viagem ativa foi encontrada para este motorista."
+        return JsonResponse({"ok": False, "error": mensagem}, status=404)
+    TmsTelemetria.objects.create(viagem=viagem, placa=viagem.veiculo_id[:20], latitude=latitude, longitude=longitude, ocorreu_em=quando)
+    dispositivo.latitude = latitude
+    dispositivo.longitude = longitude
+    dispositivo.ultimo_ping = quando
+    dispositivo.save(update_fields=["latitude", "longitude", "ultimo_ping"])
+    parada = viagem.paradas.exclude(status="entregue").order_by("ordem", "id").first()
+    if not parada:
+        return JsonResponse({"ok": True, "stored": True, "tripId": viagem.pk, "tripCompleted": True, "currentStop": None})
+    coordenada = _coordenada_parada(parada, viagem)
+    resposta = {
+        "ok": True,
+        "stored": True,
+        "tripId": viagem.pk,
+        "tripCompleted": False,
+        "currentStop": {
+            "id": parada.pk,
+            "order": parada.ordem,
+            "status": parada.status,
+            "geofenceId": coordenada[3] if coordenada else "",
+            "name": coordenada[4] if coordenada else "",
+        },
+    }
+    if coordenada:
+        distancia = _haversine(latitude, longitude, coordenada[0], coordenada[1])
+        resposta["distanceToNextStopMeters"] = round(distancia)
+        resposta["insideGeofence"] = distancia <= coordenada[2] + min(150, precisao)
+    else:
+        resposta["distanceToNextStopMeters"] = None
+        resposta["insideGeofence"] = False
+    return JsonResponse(resposta)
+
+
+def _pode_frota(user) -> bool:
+    k = _k()
+    if k.allowed(user):
+        return True
+    views = k._views()
+    return any(views.user_has_perm(user, chave) for chave in ("painel_frota", "veiculos_frota", "tms_romaneios"))
+
+
+def _cd_operacao(request) -> str:
+    digitos = _digitos(_k().current_cd_code(request))
+    if len(digitos) > 3:
+        digitos = digitos[-3:]
+    return digitos or "806"
+
+
+def _frota_snapshot(cd: str) -> dict:
+    demo = FrotaDemoSimulacao.objects.filter(cd_codigo=cd, numero_romaneio="TST-0000").first()
+    status = demo.status if demo else "em_carregamento"
+    cerca = TmsGeofence.objects.filter(pk=f"geo_cd_{cd}", tipo="CD", ativo=True).first()
+    if not cerca:
+        cerca = TmsGeofence.objects.filter(tipo="CD", ativo=True, nome__icontains=cd).first()
+    latitude = float(cerca.latitude) if cerca else -23.95
+    longitude = float(cerca.longitude) if cerca else -46.33
+    ativos = TmsVeiculo.objects.filter(ativo=True).count()
+    parados = TmsVeiculo.objects.filter(ativo=False).count()
+    base = TmsRomaneio.objects.filter(Q(cd_origem=cd) | Q(cd_origem__iendswith=cd)).exclude(numero_romaneio="TST-0000")
+    transito = base.filter(status="em_transporte").count()
+    carregando = base.filter(status__in=["conferido", "aguardando_conferencia", "aguardando_complemento"]).count()
+    return {
+        "demo": {
+            "cd_codigo": cd,
+            "numero_romaneio": "TST-0000",
+            "status": status,
+            "hard_lock": 1 if demo and demo.hard_lock else 0,
+            "notas_incluidas": demo.notas_incluidas if demo else 0,
+            "notas_futuras": demo.notas_futuras if demo else 0,
+            "waypoint_atual": demo.waypoint_atual if demo else "doca",
+            "updated_at": demo.updated_at.isoformat() if demo else "",
+        },
+        "waypoints": {
+            "doca": {"latitude": latitude + 0.00045, "longitude": longitude - 0.00035, "label": f"Doca CD {cd}"},
+            "portaria": {"latitude": latitude - 0.00045, "longitude": longitude + 0.00045, "label": f"Portaria CD {cd}"},
+        },
+        "summary": {
+            "disponivel": max(0, ativos - transito - carregando),
+            "manutencao": parados,
+            "em_transito": transito + (1 if status == "em_transito" else 0),
+            "em_carregamento": carregando + (1 if status == "em_carregamento" else 0),
+        },
+    }
+
+
+def _romaneio_tst(cd: str):
+    return TmsRomaneio.objects.filter(numero_romaneio="TST-0000").filter(Q(cd_origem=cd) | Q(cd_origem__iendswith=cd))
+
+
+@csrf_exempt
+@login_required
+@require_http_methods(["GET", "POST"])
+def api_frota_aeroporto(request):
+    if not _pode_frota(request.user):
+        return JsonResponse({"ok": False, "error": "Sem acesso ao painel da frota."}, status=403)
+    cd = _cd_operacao(request)
+    if request.method == "GET":
+        return JsonResponse({"ok": True, "data": _frota_snapshot(cd)})
+    payload = _json_body(request) or {}
+    acao = str(payload.get("action") or "").strip()
+    if acao not in {"doca", "portaria", "reiniciar", "incluir_nf"}:
+        return JsonResponse({"ok": False, "error": "Ação inválida."}, status=422)
+    atual = FrotaDemoSimulacao.objects.filter(cd_codigo=cd, numero_romaneio="TST-0000").first()
+    if acao == "doca" and atual and atual.hard_lock:
+        return JsonResponse({"ok": False, "error": "O TST-0000 já saiu do CD. Reinicie a demonstração para voltar à doca."}, status=409)
+    if acao == "incluir_nf":
+        if atual:
+            if atual.hard_lock:
+                atual.notas_futuras += 1
+            else:
+                atual.notas_incluidas += 1
+                _romaneio_tst(cd).update(quantidade_nfes=F("quantidade_nfes") + 1, atualizado_por=_k().username(request.user)[:160])
+            atual.save(update_fields=["notas_incluidas", "notas_futuras", "updated_at"])
+        return JsonResponse({"ok": True, "data": _frota_snapshot(cd)})
+    status = "em_transito" if acao == "portaria" else "em_carregamento"
+    hard_lock = acao == "portaria"
+    waypoint = "portaria" if acao == "portaria" else "doca"
+    demo, _criado = FrotaDemoSimulacao.objects.get_or_create(cd_codigo=cd, numero_romaneio="TST-0000")
+    demo.status = status
+    demo.hard_lock = hard_lock
+    demo.waypoint_atual = waypoint
+    if acao == "reiniciar":
+        demo.notas_incluidas = 0
+        demo.notas_futuras = 0
+    demo.save()
+    campos_romaneio = {"status": "em_transporte" if status == "em_transito" else "conferido", "atualizado_por": _k().username(request.user)[:160]}
+    if acao == "portaria":
+        campos_romaneio["data_saida"] = timezone.now()
+    _romaneio_tst(cd).update(**campos_romaneio)
+    if acao == "reiniciar":
+        _romaneio_tst(cd).update(quantidade_nfes=0)
+    return JsonResponse({"ok": True, "data": _frota_snapshot(cd)})
+
+
+def _cd_do_usuario(request, cd: str) -> bool:
+    if getattr(request.user, "is_superuser", False):
+        return True
+    pedido = _digitos(cd)[-3:]
+    liberados = {_digitos(codigo)[-3:] for codigo in _k().cd_codes(request)}
+    return bool(pedido) and pedido in liberados
+
+
+def _romaneios_da_viagem(viagem: TmsViagem):
+    ids = [parada.romaneio_id for parada in viagem.paradas.all() if parada.romaneio_id]
+    return TmsRomaneio.objects.filter(pk__in=ids)
+
+
+def _auditar(user, acao, modulo, objeto_id, detalhe):
+    k = _k()
+    AuditLog.objects.create(
+        user=user if getattr(user, "pk", None) else None,
+        usuario_nome=k.username(user)[:160],
+        acao=acao[:80],
+        modulo=modulo[:80],
+        objeto_id=str(objeto_id or "")[:40],
+        detalhe=detalhe,
+    )
+
+
+def _quer_json(request) -> bool:
+    tipo = (request.content_type or "").lower()
+    accept = (request.headers.get("Accept") or "").lower()
+    return "application/json" in tipo or "application/json" in accept
+
+
+@csrf_exempt
+@login_required
+@require_http_methods(["POST"])
+def api_transferencia_transicao(request, pk):
+    k = _k()
+    if not k.allowed(request.user):
+        return JsonResponse({"ok": False, "error": "Sem permissão para alterar esta transferência."}, status=403)
+    payload = _json_body(request) if _quer_json(request) else request.POST
+    if payload is None:
+        resposta = {"ok": False, "error": "Dados da transição inválidos."}
+        return JsonResponse(resposta, status=422)
+    acao = str(payload.get("action") or "").strip().lower()
+    viagem = TmsViagem.objects.filter(pk=pk, tipo_operacao="transferencia_cd").first()
+    if not viagem:
+        return JsonResponse({"ok": False, "error": "Transferência não encontrada."}, status=404)
+    alvo = viagem.destino_cd if acao == "confirmar_recebimento" else viagem.origem_cd
+    if not _cd_do_usuario(request, alvo):
+        return JsonResponse({"ok": False, "error": "Você não possui acesso ao CD desta etapa."}, status=403)
+    ator = k.username(request.user)[:160]
+    if acao == "confirmar_recebimento":
+        if viagem.status_transferencia != "aguardando_recebimento":
+            corpo = {"ok": False, "error": "A transferência ainda não está aguardando recebimento neste CD."}
+            return _resposta_transicao(request, pk, corpo, 409)
+        if not _romaneios_da_viagem(viagem).exists():
+            corpo = {"ok": False, "error": "Esta transferência não possui romaneios para incorporar."}
+            return _resposta_transicao(request, pk, corpo, 409)
+        mudou = TmsViagem.objects.filter(pk=viagem.pk, status_transferencia="aguardando_recebimento").update(
+            status="finalizada",
+            status_logistico="retornou_base",
+            status_transferencia="recebida_cd",
+        )
+        if not mudou:
+            corpo = {"ok": False, "error": "A entrada já foi confirmada por outro operador."}
+            return _resposta_transicao(request, pk, corpo, 409)
+        viagem.paradas.exclude(status="entregue").update(status="entregue")
+        _romaneios_da_viagem(viagem).update(status="recebido_transferencia_cd", atualizado_por=ator)
+        recibo = str(uuid.uuid4())
+        _auditar(request.user, "confirmou_recebimento_transferencia_cd", "tms_viagens", viagem.pk, f"CD {viagem.destino_cd}")
+        return _resposta_transicao(request, pk, {"ok": True, "viagemId": viagem.pk, "status": "recebida_cd", "receiptId": recibo}, 200)
+    esperado = {"iniciar_transporte": "embarcado", "aguardar_recebimento": "em_transporte_cd"}.get(acao)
+    if not esperado:
+        return _resposta_transicao(request, pk, {"ok": False, "error": "Ação de transferência inválida."}, 409)
+    if viagem.status_transferencia != esperado:
+        return _resposta_transicao(request, pk, {"ok": False, "error": f"A transferência não está em {esperado.replace('_', ' ')}."}, 409)
+    if acao == "iniciar_transporte":
+        mudou = TmsViagem.objects.filter(pk=viagem.pk, status_transferencia="embarcado").update(
+            status="em_rota",
+            status_logistico="em_transito",
+            status_transferencia="em_transporte_cd",
+        )
+        novo = "em_transporte_cd"
+    else:
+        mudou = TmsViagem.objects.filter(pk=viagem.pk, status_transferencia="em_transporte_cd").update(
+            status="chegou_loja",
+            status_logistico="em_descarregamento",
+            cd_atual=(viagem.destino_cd or "")[:7],
+            status_transferencia="aguardando_recebimento",
+        )
+        novo = "aguardando_recebimento"
+        if mudou:
+            _romaneios_da_viagem(viagem).update(status="aguardando_recebimento_cd", atualizado_por=ator)
+    if not mudou:
+        return _resposta_transicao(request, pk, {"ok": False, "error": "A transição já foi processada por outro evento."}, 409)
+    _auditar(request.user, "alterou_status_transferencia_cd", "tms_viagens", viagem.pk, novo)
+    return _resposta_transicao(request, pk, {"ok": True, "viagemId": viagem.pk, "status": novo}, 200)
+
+
+def _resposta_transicao(request, pk, corpo: dict, status: int):
+    if _quer_json(request):
+        return JsonResponse(corpo, status=status)
+    destino = f"/tms/viagens/{pk}/"
+    if corpo.get("ok"):
+        return redirect(f"{destino}?aviso={urllib.parse.quote('Transição registrada: ' + str(corpo.get('status') or 'ok').replace('_', ' '))}")
+    return redirect(f"{destino}?erro={urllib.parse.quote(corpo.get('error') or 'Falha na transferência.')}")
 
 
 @csrf_exempt

@@ -822,13 +822,29 @@ def tms_viagem_detalhe(request, pk):
     forms = []
     if in_transit:
         forms.append({"action": "/api/tms/viagens/forcar-baixa", "fields": {"viagem_id": trip.pk}, "label": "Forçar baixa"})
+    if trip.tipo_operacao == "transferencia_cd":
+        etapa = {
+            "embarcado": ("iniciar_transporte", "Iniciar transporte"),
+            "em_transporte_cd": ("aguardar_recebimento", "Aguardar recebimento"),
+            "aguardando_recebimento": ("confirmar_recebimento", "Confirmar recebimento"),
+        }.get(trip.status_transferencia)
+        if etapa:
+            forms.append({"action": f"/api/tms/transferencias/{trip.pk}/transicoes", "fields": {"action": etapa[0]}, "label": etapa[1]})
+    aviso = request.GET.get("aviso") or ""
+    erro = request.GET.get("erro") or ""
     return k.render_screen(
         request,
         k.blank_screen(
             title=f"Viagem #{trip.pk}",
             eyebrow="TMS",
             lead=f"{trip.motorista_nome or 'Motorista não informado'} · {trip.veiculo_id or 'sem veículo'}",
-            actions=[{"href": "/tms/expedicao/", "label": "Central de Expedição"}, {"href": "/tms/acompanhamento/", "label": "Acompanhamento"}],
+            notice=aviso,
+            error=erro,
+            actions=[
+                {"href": f"/tms/viagens/{trip.pk}/mapa/", "label": "Mapa 2D do baú"},
+                {"href": "/tms/expedicao/", "label": "Central de Expedição"},
+                {"href": "/tms/acompanhamento/", "label": "Acompanhamento"},
+            ],
             cards=[
                 {"label": "Situação", "value": trip.status_logistico or trip.status, "hint": trip.origem_cd or "-"},
                 {"label": "Paletes", "value": sum(item.paletes for item in paradas), "hint": f"capacidade {vehicle.capacidade_max_pallets if vehicle else '-'}"},
