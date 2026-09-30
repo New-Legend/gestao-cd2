@@ -88,6 +88,7 @@ urlpatterns = [
     path('tms/romaneios/<int:pk>/', krill_telas.tms_romaneio_detalhe),
     path('tms/romaneios/<int:pk>/status/', krill_fase2.tms_romaneio_status),
     path('tms/romaneios/<int:pk>/km/', krill_fase2.tms_romaneio_km),
+    path('tms/romaneios/<int:pk>/bluesoft/', krill_fase2.tms_romaneio_bluesoft),
     path('tms/romaneios/<int:pk>/devolucao/', krill_fase2.tms_romaneio_devolucao),
     path('tms/romaneios/<int:pk>/excluir/', krill_fase2.tms_romaneio_excluir),
     path('tms/viagens/<int:pk>/', krill_fase2.tms_viagem_detalhe),

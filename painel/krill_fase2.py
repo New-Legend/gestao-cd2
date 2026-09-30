@@ -2,9 +2,8 @@
 
 Bipagem de NF-e, MDF-e, baixa manual, KM/palete, descarga, rota local,
 telemetria e os atalhos que o Gestão CD expunha e o Django ainda não tinha.
-O recálculo de valor acumulado BlueSoft e o Durable Object de KPI ficam
-de fora: o primeiro depende de um grupo fiscal que este modelo não carrega,
-o segundo não existe no Render. O snapshot em /api/stream/kpis é o substituto.
+O Durable Object de KPI não existe no Render. O snapshot em /api/stream/kpis
+é o substituto. O acumulado BlueSoft está em bluesoft_valor.py.
 """
 
 from __future__ import annotations
@@ -17,6 +16,7 @@ from datetime import datetime
 from urllib.parse import quote
 
 from django.contrib.auth.decorators import login_required
+from django.db import transaction
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.utils import timezone
@@ -24,6 +24,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
 from . import krill_telas as k
+from .bluesoft_valor import lancar_snapshot, recalcular_exclusao, recalcular_status
 from .models import (
     AuditLog,
     ChamadoSaldo,
@@ -177,7 +178,7 @@ def _pendentes(romaneio: TmsRomaneio) -> int:
 
 
 def aplicar_status_romaneio(row: TmsRomaneio, status: str, user, justificativa: str = "") -> tuple[bool, str, int]:
-    """Tradução dos portões de tmsRomaneioStatus, sem o grupo de valor BlueSoft."""
+    """Tradução dos portões de tmsRomaneioStatus, inclusive o acumulado BlueSoft."""
     if status not in STATUS_LIVRES:
         return False, "Situação não permitida.", 422
     if status == "conferido" and not _bypass_conferencia():
@@ -194,16 +195,21 @@ def aplicar_status_romaneio(row: TmsRomaneio, status: str, user, justificativa: 
         vehicle = TmsVeiculo.objects.filter(placa__iexact=_text(row.placa), ativo=True).first()
         if vehicle and vehicle.capacidade_max_pallets and paletes > vehicle.capacidade_max_pallets:
             return False, "A ocupação informada ultrapassa a capacidade cadastrada do veículo.", 422
-    now = timezone.now()
-    row.status = status
-    row.atualizado_por = k.username(user)
-    if status == "em_transporte" and not row.data_saida:
-        row.data_saida = now
-    if status == "entregue" and not row.data_chegada_loja:
-        row.data_chegada_loja = now
-    if status == "finalizado" and not row.data_retorno_cd:
-        row.data_retorno_cd = now
-    row.save()
+    with transaction.atomic():
+        ok, message = recalcular_status(row, status, k.username(user))
+        if not ok:
+            transaction.set_rollback(True)
+            return False, message, 422
+        now = timezone.now()
+        row.status = status
+        row.atualizado_por = k.username(user)
+        if status == "em_transporte" and not row.data_saida:
+            row.data_saida = now
+        if status == "entregue" and not row.data_chegada_loja:
+            row.data_chegada_loja = now
+        if status == "finalizado" and not row.data_retorno_cd:
+            row.data_retorno_cd = now
+        row.save()
     if status == "rascunho" and _text(justificativa):
         TmsExcecaoOperacional.objects.create(
             romaneio=row,
@@ -458,6 +464,54 @@ def tms_romaneio_km(request, pk):
 
 
 @login_required
+@require_http_methods(["GET", "POST"])
+def tms_romaneio_bluesoft(request, pk):
+    blocked = k._gate(request, "Acumulado BlueSoft")
+    if blocked:
+        return blocked
+    row = get_object_or_404(k.romaneios_qs(request), pk=pk)
+    if request.method == "POST":
+        try:
+            snapshot = float(str(request.POST.get("valor_total_carga") or "0").replace(",", "."))
+        except ValueError:
+            snapshot = 0
+        erro = lancar_snapshot(row, snapshot, k.username(request.user))
+        if erro:
+            return k.render_screen(
+                request,
+                k.blank_screen(
+                    title="Acumulado BlueSoft",
+                    eyebrow="TMS",
+                    error=erro,
+                    actions=[{"href": f"/tms/romaneios/{row.pk}/", "label": "Voltar"}],
+                ),
+                status=422,
+            )
+        return redirect(f"/tms/romaneios/{row.pk}/")
+    return k.render_screen(
+        request,
+        k.blank_screen(
+            title=f"BlueSoft · {row.numero_romaneio}",
+            eyebrow="TMS",
+            lead="Informe o total acumulado exibido no filtro da BlueSoft. O sistema grava só a diferença deste lançamento para o mesmo CD, loja e data.",
+            actions=[{"href": f"/tms/romaneios/{row.pk}/", "label": "Voltar"}],
+            cards=[
+                {"label": "A faturar", "value": k.brl(row.valor_total_carga), "hint": "diferença deste romaneio"},
+                {"label": "Acumulado", "value": k.brl(row.valor_acumulado_bluesoft), "hint": "snapshot BlueSoft"},
+            ],
+            form={
+                "action": f"/tms/romaneios/{row.pk}/bluesoft/",
+                "title": "Total acumulado na BlueSoft",
+                "submit": "Recalcular diferença",
+                "fields": [
+                    {"name": "valor_total_carga", "label": "Total acumulado na BlueSoft", "type": "number", "value": row.valor_acumulado_bluesoft or 0},
+                ],
+            },
+        ),
+    )
+
+
+@login_required
 @require_http_methods(["POST"])
 def tms_romaneio_devolucao(request, pk):
     blocked = k._gate(request, "Devolução")
@@ -503,7 +557,18 @@ def tms_romaneio_excluir(request, pk):
             status=409,
         )
     numero = row.numero_romaneio
-    row.delete()
+    with transaction.atomic():
+        erro = recalcular_exclusao(row, k.username(request.user))
+        if erro:
+            transaction.set_rollback(True)
+        else:
+            row.delete()
+    if erro:
+        return k.render_screen(
+            request,
+            k.blank_screen(title="Excluir romaneio", error=erro, actions=[{"href": f"/tms/romaneios/{pk}/", "label": "Voltar"}]),
+            status=422,
+        )
     _audit(request.user, "excluiu", "tms_romaneios", pk, numero)
     return redirect("/tms/romaneios/")
 

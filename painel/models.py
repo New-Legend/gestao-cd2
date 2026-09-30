@@ -1831,6 +1831,7 @@ class TmsRomaneio(models.Model):
     celular_motorista = models.CharField(max_length=30, blank=True, default="")
     quantidade_nfes = models.PositiveIntegerField(default=0)
     valor_total_carga = models.FloatField(default=0)
+    valor_acumulado_bluesoft = models.FloatField(default=0)
     paletes_pbr = models.PositiveIntegerField(default=0)
     paletes_chep = models.PositiveIntegerField(default=0)
     paletes_descartavel = models.PositiveIntegerField(default=0)

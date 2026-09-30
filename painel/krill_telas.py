@@ -468,7 +468,9 @@ def tms_romaneios(request):
         elif TmsRomaneio.objects.filter(numero_romaneio=numero).exists():
             notice = "Já existe um romaneio com esse número."
         else:
-            TmsRomaneio.objects.create(
+            from .bluesoft_valor import lancar_snapshot
+
+            row = TmsRomaneio(
                 numero_romaneio=numero,
                 data=parse_date(request.POST.get("data"), today()),
                 hora=(request.POST.get("hora") or "")[:8],
@@ -477,7 +479,6 @@ def tms_romaneios(request):
                 motorista=(request.POST.get("motorista") or "").strip(),
                 placa=(request.POST.get("placa") or "").strip().upper(),
                 quantidade_nfes=int(float(request.POST.get("quantidade_nfes") or 0)),
-                valor_total_carga=float(request.POST.get("valor_total_carga") or 0),
                 total_paletes=int(float(request.POST.get("total_paletes") or 0)),
                 paletes_pbr=int(float(request.POST.get("total_paletes") or 0)),
                 status="rascunho",
@@ -485,7 +486,11 @@ def tms_romaneios(request):
                 criado_por=username(request.user),
                 atualizado_por=username(request.user),
             )
-            return redirect("/tms/romaneios/")
+            erro = lancar_snapshot(row, float(request.POST.get("valor_total_carga") or 0), username(request.user))
+            if erro:
+                notice = erro
+            else:
+                return redirect("/tms/romaneios/")
     data = parse_date(request.GET.get("data"), today())
     q = (request.GET.get("q") or "").strip()
     status = request.GET.get("status") or ""
@@ -542,7 +547,7 @@ def tms_romaneios_novo(request):
         blank_screen(
             title="Novo romaneio",
             eyebrow="TMS",
-            lead="Abre um rascunho no CD ativo. A conferência e a saída acontecem em Executar OT.",
+            lead="Informe o total acumulado exibido no filtro da BlueSoft. O sistema grava só a diferença deste lançamento para o mesmo CD, loja e data.",
             actions=[{"href": "/tms/romaneios/", "label": "Voltar"}],
             form={
                 "action": "/tms/romaneios/novo/",
@@ -557,7 +562,7 @@ def tms_romaneios_novo(request):
                     {"name": "placa", "label": "Placa", "type": "text", "value": ""},
                     {"name": "quantidade_nfes", "label": "NF-e", "type": "number", "value": "0"},
                     {"name": "total_paletes", "label": "Paletes", "type": "number", "value": "0"},
-                    {"name": "valor_total_carga", "label": "Valor", "type": "number", "value": "0"},
+                    {"name": "valor_total_carga", "label": "Total acumulado na BlueSoft", "type": "number", "value": "0"},
                     {"name": "observacoes", "label": "Observações", "type": "textarea", "value": "", "wide": True},
                 ],
             },
@@ -585,12 +590,13 @@ def tms_romaneio_detalhe(request, pk):
                 {"href": "/tms/romaneios/", "label": "Lista"},
                 {"href": "/tms/executar/", "label": "Executar OT"},
                 {"href": f"/tms/romaneios/{row.pk}/km/", "label": "KM e paletes"},
+                {"href": f"/tms/romaneios/{row.pk}/bluesoft/", "label": "Acumulado BlueSoft"},
                 {"href": "/tms/mdfe/", "label": "MDF-e"},
             ],
             cards=[
                 {"label": "Situação", "value": ROMANEIO_STATUS.get(row.status, row.status), "hint": row.cd_origem},
                 {"label": "Paletes", "value": row.total_paletes, "hint": f"PBR {row.paletes_pbr} · CHEP {row.paletes_chep}"},
-                {"label": "Valor", "value": brl(row.valor_total_carga), "hint": f"{conferidas}/{len(notas) or row.quantidade_nfes} NF-e"},
+                {"label": "A faturar", "value": brl(row.valor_total_carga), "hint": f"acumulado BlueSoft {brl(row.valor_acumulado_bluesoft)}"},
                 {"label": "KM", "value": num(row.km_rodado) if row.km_rodado else "-", "hint": f"ordem {row.ordem_entrega or '-'}"},
             ],
             form={
