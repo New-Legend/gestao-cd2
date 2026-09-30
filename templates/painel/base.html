@@ -106,11 +106,9 @@
       border-radius: 8px;
       background: white;
       border: 2px solid rgba(255,255,255,.9);
-      color: var(--blue-900);
-      display: grid;
-      place-items: center;
-      font-weight: 900;
-      font-size: 14px;
+      display: block;
+      object-fit: contain;
+      padding: 3px;
     }
     .brand-title { font-weight: 800; line-height: 1.15; }
     .brand-title span { display: block; font-size: 12px; color: #cfe4ff; font-weight: 600; margin-top: 3px; }
@@ -4856,8 +4854,9 @@
     body.fusao-cd .brand-title span { color: #cfe4ff; }
     body.fusao-cd .brand-mark {
       background: #fff;
-      color: #073b73;
       border: 2px solid #ffd21f;
+      object-fit: contain;
+      padding: 3px;
     }
     body.fusao-cd .topbar,
     body.fusao-cd #app-topbar {
