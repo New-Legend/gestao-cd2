@@ -9,8 +9,10 @@ from __future__ import annotations
 
 import csv
 import json
+import re
 from datetime import timedelta
 from io import StringIO
+from urllib.parse import quote
 
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
@@ -453,6 +455,29 @@ def _romaneio_table(rows):
     }
 
 
+def _notas_do_formulario(texto: str) -> list[dict]:
+    notas = []
+    for linha in (texto or "").splitlines():
+        linha = linha.strip()
+        if not linha:
+            continue
+        if ";" in linha:
+            chave_bruta, _, valor_bruto = linha.partition(";")
+        else:
+            partes = linha.split()
+            chave_bruta = partes[0]
+            valor_bruto = partes[1] if len(partes) > 1 else "0"
+        chave = re.sub(r"\D", "", chave_bruta)
+        if not chave:
+            continue
+        try:
+            valor = float(str(valor_bruto).strip().replace(".", "").replace(",", ".")) if "," in str(valor_bruto) else float(str(valor_bruto).strip().replace(",", "."))
+        except ValueError:
+            valor = 0
+        notas.append({"chave_acesso": chave, "valor": valor})
+    return notas
+
+
 @login_required
 @require_http_methods(["GET", "POST"])
 def tms_romaneios(request):
@@ -468,8 +493,9 @@ def tms_romaneios(request):
         elif TmsRomaneio.objects.filter(numero_romaneio=numero).exists():
             notice = "Já existe um romaneio com esse número."
         else:
-            from .bluesoft_valor import lancar_snapshot
+            from .bluesoft_valor import criar_romaneio_com_notas, lancar_snapshot
 
+            notas = _notas_do_formulario(request.POST.get("notas") or "")
             row = TmsRomaneio(
                 numero_romaneio=numero,
                 data=parse_date(request.POST.get("data"), today()),
@@ -481,16 +507,27 @@ def tms_romaneios(request):
                 quantidade_nfes=int(float(request.POST.get("quantidade_nfes") or 0)),
                 total_paletes=int(float(request.POST.get("total_paletes") or 0)),
                 paletes_pbr=int(float(request.POST.get("total_paletes") or 0)),
-                status="rascunho",
+                status="pendente_conferencia" if notas else "rascunho",
                 observacoes=(request.POST.get("observacoes") or "").strip(),
                 criado_por=username(request.user),
                 atualizado_por=username(request.user),
             )
-            erro = lancar_snapshot(row, float(request.POST.get("valor_total_carga") or 0), username(request.user))
-            if erro:
-                notice = erro
+            if notas:
+                resultado = criar_romaneio_com_notas(row, notas, username(request.user))
+                if not resultado["sucesso"]:
+                    notice = resultado["erro"]
+                else:
+                    aviso = f"Romaneio gravado. {resultado['qtd_notas_novas']} NF-e nova(s)"
+                    if resultado["descartadas"]:
+                        aviso += f", {resultado['descartadas']} já expedida(s) descartada(s)"
+                    aviso += f". A faturar {brl(resultado['valor_faturado'])}."
+                    return redirect(f"/tms/romaneios/?notice={quote(aviso)}")
             else:
-                return redirect("/tms/romaneios/")
+                erro = lancar_snapshot(row, float(request.POST.get("valor_total_carga") or 0), username(request.user))
+                if erro:
+                    notice = erro
+                else:
+                    return redirect("/tms/romaneios/")
     data = parse_date(request.GET.get("data"), today())
     q = (request.GET.get("q") or "").strip()
     status = request.GET.get("status") or ""
@@ -547,7 +584,7 @@ def tms_romaneios_novo(request):
         blank_screen(
             title="Novo romaneio",
             eyebrow="TMS",
-            lead="Informe o total acumulado exibido no filtro da BlueSoft. O sistema grava só a diferença deste lançamento para o mesmo CD, loja e data.",
+            lead="Com NF-e na lista, as chaves já vinculadas são descartadas e o valor faturado é só a soma do que sobrou. Sem NF-e, o campo acima é o total acumulado da BlueSoft e o sistema grava a diferença do dia.",
             actions=[{"href": "/tms/romaneios/", "label": "Voltar"}],
             form={
                 "action": "/tms/romaneios/novo/",
@@ -563,6 +600,7 @@ def tms_romaneios_novo(request):
                     {"name": "quantidade_nfes", "label": "NF-e", "type": "number", "value": "0"},
                     {"name": "total_paletes", "label": "Paletes", "type": "number", "value": "0"},
                     {"name": "valor_total_carga", "label": "Total acumulado na BlueSoft", "type": "number", "value": "0"},
+                    {"name": "notas", "label": "NF-e (chave;valor, uma por linha)", "type": "textarea", "value": "", "wide": True},
                     {"name": "observacoes", "label": "Observações", "type": "textarea", "value": "", "wide": True},
                 ],
             },

@@ -2035,6 +2035,7 @@ class TmsRomaneioNfe(models.Model):
     chave_acesso = models.CharField(max_length=44, db_index=True)
     numero = models.CharField(max_length=20, blank=True, default="")
     serie = models.CharField(max_length=8, blank=True, default="1")
+    valor_total = models.FloatField(default=0)
     status_conferencia = models.CharField(max_length=20, default="pendente")
 
     class Meta:

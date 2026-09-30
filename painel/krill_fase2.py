@@ -24,7 +24,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
 from . import krill_telas as k
-from .bluesoft_valor import lancar_snapshot, recalcular_exclusao, recalcular_status
+from .bluesoft_valor import criar_romaneio_com_notas, lancar_snapshot, recalcular_exclusao, recalcular_status
 from .models import (
     AuditLog,
     ChamadoSaldo,
@@ -574,9 +574,40 @@ def tms_romaneio_excluir(request, pk):
 
 
 @login_required
+@require_http_methods(["GET", "POST"])
 def api_tms_romaneios(request):
     if not k.allowed(request.user):
-        return JsonResponse({"error": "Sem permissão."}, status=403)
+        return JsonResponse({"sucesso": False, "error": "Sem permissão."}, status=403)
+    if request.method == "POST":
+        payload = _json(request)
+        if payload is None:
+            return JsonResponse({"sucesso": False, "erro": "JSON inválido."}, status=400)
+        numero = _text(payload.get("numero_romaneio"))
+        loja = _text(payload.get("loja_destino"))
+        notas = payload.get("notas") or payload.get("payload_notas") or []
+        if not numero or not loja:
+            return JsonResponse({"sucesso": False, "erro": "Informe o número do romaneio e a loja."}, status=422)
+        if not isinstance(notas, list):
+            return JsonResponse({"sucesso": False, "erro": "Informe a lista de notas."}, status=422)
+        if TmsRomaneio.objects.filter(numero_romaneio=numero).exists():
+            return JsonResponse({"sucesso": False, "erro": "Já existe um romaneio com esse número."}, status=422)
+        try:
+            ignorar = int(payload.get("ignore_rascunho_id") or 0)
+        except (TypeError, ValueError):
+            ignorar = 0
+        row = TmsRomaneio(
+            numero_romaneio=numero[:40],
+            data=k.parse_date(str(payload.get("data") or payload.get("data_operacional") or ""), k.today()),
+            cd_origem=_text(payload.get("cd_origem") or k.current_cd_code(request))[:7],
+            loja_destino=loja[:160],
+            motorista=_text(payload.get("motorista"))[:160],
+            placa=_text(payload.get("placa")).upper()[:20],
+            status="pendente_conferencia",
+            criado_por=k.username(request.user),
+            atualizado_por=k.username(request.user),
+        )
+        resultado = criar_romaneio_com_notas(row, notas, k.username(request.user), ignorar)
+        return JsonResponse(resultado, status=201 if resultado.get("sucesso") else 422)
     rows = k.romaneios_qs(request).order_by("-data", "-id")[:100]
     return JsonResponse(
         {

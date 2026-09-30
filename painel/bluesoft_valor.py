@@ -14,10 +14,10 @@ import re
 from dataclasses import dataclass
 from datetime import date, datetime
 
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.utils import timezone
 
-from .models import TmsRomaneio
+from .models import TmsRascunhoNfe, TmsRomaneio, TmsRomaneioNfe
 
 _EPSILON = 2.220446049250313e-16
 _LOJA = re.compile(r"\b(?:LJ|LOJA)\s*0*(\d{1,3})\b", re.IGNORECASE)
@@ -162,6 +162,111 @@ def resolver_snapshot(data, cd_origem: str, loja_destino: str, snapshot: float, 
         valor_acumulado_bluesoft=round_money(snapshot),
     )
     return calcular_grupo_valores([*anteriores, linha]), linha
+
+
+def chaves_ja_vinculadas(chaves: list[str], ignore_rascunho_id: int = 0) -> set[str]:
+    """tmsExistingNfKeys: chave já gravada num romaneio ou num rascunho de e-mail."""
+    unique = []
+    seen = set()
+    for chave in chaves:
+        texto = str(chave or "").strip()
+        if not texto or texto in seen:
+            continue
+        seen.add(texto)
+        unique.append(texto)
+    found: set[str] = set()
+    for offset in range(0, len(unique), 50):
+        chunk = unique[offset : offset + 50]
+        found.update(TmsRomaneioNfe.objects.filter(chave_acesso__in=chunk).values_list("chave_acesso", flat=True))
+        drafts = TmsRascunhoNfe.objects.filter(chave_acesso__in=chunk)
+        if ignore_rascunho_id:
+            drafts = drafts.exclude(rascunho_id=ignore_rascunho_id)
+        found.update(drafts.values_list("chave_acesso", flat=True))
+    return found
+
+
+def _notas_unicas(payload_notas: list[dict]) -> tuple[list[dict], int]:
+    unique = []
+    seen = set()
+    repetidas = 0
+    for nota in payload_notas or []:
+        chave = str((nota or {}).get("chave_acesso") or (nota or {}).get("chaveAcesso") or "").strip()
+        if not chave:
+            continue
+        if chave in seen:
+            repetidas += 1
+            continue
+        seen.add(chave)
+        bruto = (nota or {}).get("valor", (nota or {}).get("valor_total", (nota or {}).get("valorTotal", 0)))
+        try:
+            valor = float(str(bruto).replace(",", "."))
+        except (TypeError, ValueError):
+            valor = 0
+        unique.append(
+            {
+                "chave_acesso": chave,
+                "valor": valor,
+                "numero": str((nota or {}).get("numero") or "")[:20],
+                "serie": str((nota or {}).get("serie") or "1")[:8],
+            }
+        )
+    return unique, repetidas
+
+
+def criar_romaneio_com_notas(row: TmsRomaneio, payload_notas: list[dict], username: str, ignore_rascunho_id: int = 0) -> dict:
+    """Peneira de tmsExistingNfKeys e delta de tmsFinalizeRomaneioXml.
+
+    valor_total_carga fica com a soma das notas inéditas. O acumulado BlueSoft
+    é essa soma mais o total já lançado no mesmo CD, loja e data.
+    """
+    notas, repetidas = _notas_unicas(payload_notas)
+    existentes = chaves_ja_vinculadas([nota["chave_acesso"] for nota in notas], ignore_rascunho_id)
+    ineditas = [nota for nota in notas if nota["chave_acesso"] not in existentes]
+    descartadas = repetidas + len(notas) - len(ineditas)
+    if not ineditas:
+        return {
+            "sucesso": False,
+            "erro": "Todas as NF-e enviadas já estão vinculadas a romaneios. Nenhum lançamento duplicado foi criado.",
+            "descartadas": descartadas,
+        }
+    valor_total = round_money(sum(nota["valor"] for nota in ineditas))
+    grupo = calcular_grupo_valores(grupo_rows(row.data, row.cd_origem, row.loja_destino))
+    if not grupo.ok:
+        return {"sucesso": False, "erro": grupo.error or "A sequência de valores desta loja precisa ser revisada."}
+    acumulado = round_money(grupo.total + valor_total)
+    try:
+        with transaction.atomic():
+            _gravar(grupo.updates, username)
+            row.valor_total_carga = valor_total
+            row.valor_acumulado_bluesoft = acumulado
+            row.quantidade_nfes = len(ineditas)
+            row.status = row.status or "pendente_conferencia"
+            row.atualizado_por = username
+            row.criado_por = row.criado_por or username
+            row.save()
+            TmsRomaneioNfe.objects.bulk_create(
+                [
+                    TmsRomaneioNfe(
+                        romaneio=row,
+                        chave_acesso=nota["chave_acesso"],
+                        numero=nota["numero"],
+                        serie=nota["serie"],
+                        valor_total=round_money(nota["valor"]),
+                        status_conferencia="pendente",
+                    )
+                    for nota in ineditas
+                ]
+            )
+    except IntegrityError:
+        return {"sucesso": False, "erro": "Uma das NF-e já foi vinculada enquanto esta prévia estava aberta. Leia os XMLs novamente."}
+    return {
+        "sucesso": True,
+        "romaneio": row.pk,
+        "qtd_notas_novas": len(ineditas),
+        "descartadas": descartadas,
+        "valor_faturado": valor_total,
+        "valor_acumulado_bluesoft": acumulado,
+    }
 
 
 def lancar_snapshot(row: TmsRomaneio, snapshot: float, username: str) -> str:
