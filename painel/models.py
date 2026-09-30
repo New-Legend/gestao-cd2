@@ -1764,8 +1764,10 @@ class TmsViagem(models.Model):
     STATUS_LOGISTICO = [
         ("em_patio", "Em pátio"),
         ("em_transito", "Em trânsito"),
+        ("em_transporte", "Em transporte"),
         ("em_descarregamento", "Em descarregamento"),
         ("em_transito_retorno", "Em trânsito de retorno"),
+        ("entregue", "Entregue"),
         ("retornou_base", "Retornou à base"),
     ]
 
@@ -1848,6 +1850,7 @@ class TmsRomaneio(models.Model):
     ordem_entrega = models.PositiveIntegerField(default=0)
     distancia_rota_km = models.FloatField(default=0)
     tempo_rota_minutos = models.PositiveIntegerField(default=0)
+    comprovante_entrega = models.CharField(max_length=240, blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -2022,3 +2025,117 @@ class PageBuilderTela(models.Model):
     class Meta:
         db_table = "page_builder_telas"
         ordering = ["-criado_em"]
+
+
+class TmsRomaneioNfe(models.Model):
+    """NF-e do embarque — tradução de tms_romaneio_nfes."""
+
+    romaneio = models.ForeignKey(TmsRomaneio, related_name="nfes", on_delete=models.CASCADE)
+    chave_acesso = models.CharField(max_length=44, db_index=True)
+    numero = models.CharField(max_length=20, blank=True, default="")
+    serie = models.CharField(max_length=8, blank=True, default="1")
+    status_conferencia = models.CharField(max_length=20, default="pendente")
+
+    class Meta:
+        db_table = "tms_romaneio_nfes"
+        ordering = ["id"]
+
+
+class TmsRascunho(models.Model):
+    """Pré-romaneio ainda sem carga fechada — tradução de romaneios_rascunhos."""
+
+    status = models.CharField(max_length=40, default="pendente_conferencia")
+    cd_origem = models.CharField(max_length=7, default="806")
+    loja_destino = models.CharField(max_length=160, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "romaneios_rascunhos"
+        ordering = ["-id"]
+
+
+class TmsRascunhoNfe(models.Model):
+    rascunho = models.ForeignKey(TmsRascunho, related_name="nfes", on_delete=models.CASCADE)
+    chave_acesso = models.CharField(max_length=44, db_index=True)
+
+    class Meta:
+        db_table = "tms_romaneio_email_nfes"
+
+
+class TmsMdfeManifesto(models.Model):
+    numero = models.CharField(max_length=40)
+    serie = models.CharField(max_length=8, default="1")
+    status = models.CharField(max_length=20, default="rascunho")
+    data_emissao = models.DateField()
+    emitente_razao_social = models.CharField(max_length=180, blank=True, default="")
+    emitente_cnpj = models.CharField(max_length=14, blank=True, default="")
+    emitente_ie = models.CharField(max_length=20, blank=True, default="")
+    uf_carregamento = models.CharField(max_length=2, blank=True, default="")
+    uf_descarregamento = models.CharField(max_length=2, blank=True, default="")
+    motorista_nome = models.CharField(max_length=160, blank=True, default="")
+    motorista_cpf = models.CharField(max_length=11, blank=True, default="")
+    placa = models.CharField(max_length=20, blank=True, default="")
+    rntrc = models.CharField(max_length=20, blank=True, default="")
+    lacres = models.CharField(max_length=240, blank=True, default="")
+    observacoes = models.TextField(blank=True, default="")
+    payload_json = models.JSONField(default=dict, blank=True)
+    criado_por = models.CharField(max_length=160, blank=True, default="")
+    atualizado_por = models.CharField(max_length=160, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "tms_mdfe_manifestos"
+        ordering = ["-id"]
+
+
+class TmsMdfeRomaneio(models.Model):
+    manifesto = models.ForeignKey(TmsMdfeManifesto, related_name="vinculos", on_delete=models.CASCADE)
+    romaneio = models.ForeignKey(TmsRomaneio, related_name="mdfes", on_delete=models.CASCADE)
+
+    class Meta:
+        db_table = "tms_mdfe_romaneios"
+        constraints = [
+            models.UniqueConstraint(fields=["manifesto", "romaneio"], name="mdfe_romaneio_unico"),
+        ]
+
+
+class TmsExcecaoOperacional(models.Model):
+    romaneio = models.ForeignKey(TmsRomaneio, related_name="excecoes", on_delete=models.CASCADE)
+    acao = models.CharField(max_length=40)
+    justificativa = models.TextField()
+    usuario = models.CharField(max_length=160, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "tms_excecoes_operacionais"
+        ordering = ["-created_at"]
+
+
+class TmsContaPalete(models.Model):
+    romaneio = models.OneToOneField(TmsRomaneio, related_name="conta_palete", on_delete=models.CASCADE)
+    cd_origem = models.CharField(max_length=7, blank=True, default="")
+    filial = models.CharField(max_length=160, blank=True, default="")
+    paletes_pbr_enviados = models.PositiveIntegerField(default=0)
+    paletes_descartaveis_enviados = models.PositiveIntegerField(default=0)
+    paletes_pbr_devolvidos = models.PositiveIntegerField(default=0)
+    paletes_descartaveis_devolvidos = models.PositiveIntegerField(default=0)
+    criado_por = models.CharField(max_length=160, blank=True, default="")
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "conta_corrente_paletes_rede"
+
+
+class LogisticaDispositivo(models.Model):
+    identificador = models.CharField(max_length=80, unique=True)
+    nome = models.CharField(max_length=160, blank=True, default="")
+    tipo = models.CharField(max_length=40, default="celular")
+    motorista = models.CharField(max_length=160, blank=True, default="")
+    ativo = models.BooleanField(default=True)
+    latitude = models.FloatField(null=True, blank=True)
+    longitude = models.FloatField(null=True, blank=True)
+    ultimo_ping = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = "logistica_dispositivos"
+        ordering = ["nome", "identificador"]

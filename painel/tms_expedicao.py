@@ -98,7 +98,7 @@ def expedition_action(status: str, tone: str, trip_id: int, first_romaneio_id) -
     if status == "em_patio" and first_romaneio_id:
         return {"label": "Conferir carga", "href": "/tms/romaneios/", "icon": "fa-clipboard-check"}
     if status in OPEN_LOGISTIC:
-        return {"label": "Detalhes da viagem", "href": "/tms/acompanhamento/", "icon": "fa-route"}
+        return {"label": "Detalhes da viagem", "href": f"/tms/viagens/{trip_id}/", "icon": "fa-route"}
     return {"label": "Ver romaneios", "href": "/tms/romaneios/", "icon": "fa-list-check"}
 
 

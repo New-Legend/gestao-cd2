@@ -573,6 +573,8 @@ def tms_romaneio_detalhe(request, pk):
     row = get_object_or_404(romaneios_qs(request), pk=pk)
     devolucoes = list(row.devolucoes.all())
     divergencias = list(row.divergencias.all())
+    notas = list(row.nfes.all())
+    conferidas = sum(1 for note in notas if note.status_conferencia == "conferida")
     return render_screen(
         request,
         blank_screen(
@@ -582,15 +584,31 @@ def tms_romaneio_detalhe(request, pk):
             actions=[
                 {"href": "/tms/romaneios/", "label": "Lista"},
                 {"href": "/tms/executar/", "label": "Executar OT"},
-                {"href": "/tms/acompanhamento/", "label": "Acompanhamento"},
+                {"href": f"/tms/romaneios/{row.pk}/km/", "label": "KM e paletes"},
+                {"href": "/tms/mdfe/", "label": "MDF-e"},
             ],
             cards=[
                 {"label": "Situação", "value": ROMANEIO_STATUS.get(row.status, row.status), "hint": row.cd_origem},
                 {"label": "Paletes", "value": row.total_paletes, "hint": f"PBR {row.paletes_pbr} · CHEP {row.paletes_chep}"},
-                {"label": "Valor", "value": brl(row.valor_total_carga), "hint": f"{row.quantidade_nfes} NF-e"},
+                {"label": "Valor", "value": brl(row.valor_total_carga), "hint": f"{conferidas}/{len(notas) or row.quantidade_nfes} NF-e"},
                 {"label": "KM", "value": num(row.km_rodado) if row.km_rodado else "-", "hint": f"ordem {row.ordem_entrega or '-'}"},
             ],
+            form={
+                "action": f"/api/romaneios/{row.pk}/bipar/",
+                "title": "Bipar NF-e",
+                "submit": "Conferir nota",
+                "fields": [{"name": "chave_acesso", "label": "Chave de 44 dígitos", "type": "text", "value": "", "required": True}],
+            },
             tables=[
+                {
+                    "title": "NF-e do embarque",
+                    "lead": f"{conferidas} conferida(s) de {len(notas)}.",
+                    "headers": ["Número", "Chave", "Situação"],
+                    "rows": [
+                        [cell(note.numero or "-"), cell(note.chave_acesso), status_cell(note.status_conferencia, {"pendente": "Pendente", "conferida": "Conferida"})]
+                        for note in notas
+                    ],
+                },
                 {
                     "title": "Linha do tempo",
                     "lead": row.observacoes or "Sem observações.",
@@ -789,7 +807,11 @@ def tms_executar(request):
             "entregue": "finalizado",
         }
         if row and allowed_steps.get(row.status) == status:
-            _mover_romaneio(row, status, request.user)
+            from .krill_fase2 import aplicar_status_romaneio, erro_executar
+
+            ok, message, _code = aplicar_status_romaneio(row, status, request.user, request.POST.get("justificativa") or "")
+            if not ok:
+                return redirect(erro_executar(message))
         return redirect("/tms/executar/")
     data = parse_date(request.GET.get("data"), today())
     status = request.GET.get("status") or ""
@@ -802,7 +824,7 @@ def tms_executar(request):
     rows = list(found.order_by("ordem_entrega", "hora", "id")[:120])
     body = []
     for row in rows:
-        nxt = {"rascunho": ("conferido", "Conferir"), "conferido": ("em_transporte", "Iniciar"), "aguardando_conferencia": ("em_transporte", "Iniciar"), "em_transporte": ("entregue", "Chegou"), "entregue": ("finalizado", "Finalizar")}.get(row.status)
+        nxt = {"conferido": ("em_transporte", "Iniciar"), "em_transporte": ("entregue", "Chegou"), "entregue": ("finalizado", "Finalizar")}.get(row.status)
         forms = []
         if nxt:
             forms.append({"action": "/tms/executar/", "fields": {"romaneio_id": row.id, "status": nxt[0]}, "label": nxt[1]})
@@ -822,7 +844,8 @@ def tms_executar(request):
         blank_screen(
             title="Executar ordem de transporte",
             eyebrow="TMS",
-            lead="Confirme o motorista e o veículo antes da saída e acompanhe cada entrega.",
+            lead="A saída só libera depois da bipagem de 100% das NF-e. Conferir pelo botão livre foi bloqueado de propósito.",
+            error=(request.GET.get("erro") or ""),
             actions=[{"href": "/tms/rotas/", "label": "Rotas"}, {"href": "/tms/acompanhamento/", "label": "Acompanhamento"}],
             filters=[
                 {"name": "data", "label": "Data", "type": "date", "value": data.isoformat()},
