@@ -17,7 +17,7 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path
 
-from painel import krill_fase2, krill_telas, tms_expedicao, views
+from painel import krill_fase2, krill_telas, romaneio_telas, tms_expedicao, views
 
 urlpatterns = [
     path('', views.dashboard, name='dashboard'),
@@ -81,11 +81,14 @@ urlpatterns = [
     path('tms/painel-tv/', krill_telas.tms_painel_tv),
     path('tms/painel-tv', krill_telas.tms_painel_tv),
     path('tms/romaneios/', krill_telas.tms_romaneios, name='tms_romaneios'),
-    path('tms/romaneios/novo/', krill_telas.tms_romaneios_novo),
+    path('tms/romaneios/novo/', romaneio_telas.tms_romaneios_novo),
     path('tms/romaneios/exportar/', krill_telas.tms_romaneios_export),
     path('tms/romaneios/rascunhos/', krill_telas.tms_rascunhos),
     path('tms/romaneios/rascunhos/atualizacoes/', krill_telas.tms_rascunhos_feed),
     path('tms/romaneios/<int:pk>/', krill_telas.tms_romaneio_detalhe),
+    path('tms/romaneios/<int:pk>/editar/', romaneio_telas.tms_romaneio_editar),
+    path('tms/romaneios/<int:pk>/imprimir/', romaneio_telas.tms_romaneio_imprimir),
+    path('tms/romaneios/<int:pk>/lacres/foto/', romaneio_telas.tms_romaneio_lacre_foto),
     path('tms/romaneios/<int:pk>/status/', krill_fase2.tms_romaneio_status),
     path('tms/romaneios/<int:pk>/km/', krill_fase2.tms_romaneio_km),
     path('tms/romaneios/<int:pk>/bluesoft/', krill_fase2.tms_romaneio_bluesoft),
@@ -95,6 +98,7 @@ urlpatterns = [
     path('tms/mdfe/', krill_fase2.tms_mdfe_tela),
     path('api/romaneios/<int:pk>/bipar', krill_fase2.api_romaneio_bipar),
     path('api/romaneios/<int:pk>/bipar/', krill_fase2.api_romaneio_bipar),
+    path('api/tms/romaneios/<int:pk>/vinculo', romaneio_telas.api_romaneio_vinculo),
     path('api/tms/romaneios', krill_fase2.api_tms_romaneios),
     path('api/tms/romaneios/por-chave', krill_fase2.api_romaneio_por_chave),
     path('api/mdfe/validar', krill_fase2.api_mdfe_validar),

@@ -96,7 +96,7 @@
 {% endif %}
 
 {% if screen.form %}
-<form class="krill-panel krill-form" method="post" action="{{ screen.form.action }}">
+<form class="krill-panel krill-form" method="post" action="{{ screen.form.action }}" {% if screen.form.multipart %}enctype="multipart/form-data"{% endif %}>
   {% csrf_token %}
   <div style="flex:1 1 100%"><h3>{{ screen.form.title }}</h3></div>
   {% if screen.form.hidden %}
@@ -114,12 +114,30 @@
     </select>
     {% elif field.type == "textarea" %}
     <textarea name="{{ field.name }}" {% if field.required %}required{% endif %}>{{ field.value }}</textarea>
+    {% elif field.type == "file" %}
+    <input name="{{ field.name }}" type="file" {% if field.multiple %}multiple{% endif %} {% if field.accept %}accept="{{ field.accept }}"{% endif %} {% if field.required %}required{% endif %}>
     {% else %}
     <input name="{{ field.name }}" type="{{ field.type }}" value="{{ field.value }}" {% if field.required %}required{% endif %}>
     {% endif %}
   </label>
   {% endfor %}
   <button type="submit">{{ screen.form.submit }}</button>
+</form>
+{% endif %}
+{% if screen.secondary_form %}
+<form class="krill-panel krill-form" method="post" action="{{ screen.secondary_form.action }}" {% if screen.secondary_form.multipart %}enctype="multipart/form-data"{% endif %}>
+  {% csrf_token %}
+  <div style="flex:1 1 100%"><h3>{{ screen.secondary_form.title }}</h3></div>
+  {% for field in screen.secondary_form.fields %}
+  <label class="krill-field {% if field.wide %}wide{% endif %}">{{ field.label }}
+    {% if field.type == "textarea" %}
+    <textarea name="{{ field.name }}" {% if field.required %}required{% endif %}>{{ field.value }}</textarea>
+    {% else %}
+    <input name="{{ field.name }}" type="{{ field.type }}" value="{{ field.value }}" {% if field.required %}required{% endif %}>
+    {% endif %}
+  </label>
+  {% endfor %}
+  <button type="submit">{{ screen.secondary_form.submit }}</button>
 </form>
 {% endif %}
 

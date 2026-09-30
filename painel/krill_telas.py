@@ -626,7 +626,8 @@ def tms_romaneio_detalhe(request, pk):
             lead=f"{row.loja_destino or 'Sem loja'} · {row.motorista or 'Sem motorista'} · {row.placa or 'Sem placa'}",
             actions=[
                 {"href": "/tms/romaneios/", "label": "Lista"},
-                {"href": "/tms/executar/", "label": "Executar OT"},
+                {"href": f"/tms/romaneios/{row.pk}/editar/", "label": "Editar"},
+                {"href": f"/tms/romaneios/{row.pk}/imprimir/", "label": "Imprimir"},
                 {"href": f"/tms/romaneios/{row.pk}/km/", "label": "KM e paletes"},
                 {"href": f"/tms/romaneios/{row.pk}/bluesoft/", "label": "Acumulado BlueSoft"},
                 {"href": "/tms/mdfe/", "label": "MDF-e"},
@@ -635,6 +636,7 @@ def tms_romaneio_detalhe(request, pk):
                 {"label": "Situação", "value": ROMANEIO_STATUS.get(row.status, row.status), "hint": row.cd_origem},
                 {"label": "Paletes", "value": row.total_paletes, "hint": f"PBR {row.paletes_pbr} · CHEP {row.paletes_chep}"},
                 {"label": "A faturar", "value": brl(row.valor_total_carga), "hint": f"acumulado BlueSoft {brl(row.valor_acumulado_bluesoft)}"},
+                {"label": "Conferência", "value": f"{conferidas}/{len(notas)}", "hint": "bipadas antes da impressão"},
                 {"label": "KM", "value": num(row.km_rodado) if row.km_rodado else "-", "hint": f"ordem {row.ordem_entrega or '-'}"},
             ],
             form={

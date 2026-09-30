@@ -1837,6 +1837,11 @@ class TmsRomaneio(models.Model):
     paletes_descartavel = models.PositiveIntegerField(default=0)
     total_paletes = models.PositiveIntegerField(default=0)
     responsavel = models.CharField(max_length=160, blank=True, default="")
+    cidade_loja = models.CharField(max_length=120, blank=True, default="")
+    cep_loja = models.CharField(max_length=12, blank=True, default="")
+    destinatario_cnpj = models.CharField(max_length=14, blank=True, default="")
+    peso_bruto_kg = models.FloatField(default=0)
+    total_volumes = models.FloatField(default=0)
     lacres = models.CharField(max_length=240, blank=True, default="")
     observacoes = models.TextField(blank=True, default="")
     status = models.CharField(max_length=40, default="rascunho")
@@ -2036,11 +2041,76 @@ class TmsRomaneioNfe(models.Model):
     numero = models.CharField(max_length=20, blank=True, default="")
     serie = models.CharField(max_length=8, blank=True, default="1")
     valor_total = models.FloatField(default=0)
+    data_emissao = models.DateField(null=True, blank=True)
+    emitente_cnpj = models.CharField(max_length=14, blank=True, default="")
+    destinatario_cnpj = models.CharField(max_length=14, blank=True, default="")
+    peso_bruto_kg = models.FloatField(default=0)
+    total_volumes = models.FloatField(default=0)
+    arquivo_nome = models.CharField(max_length=180, blank=True, default="")
+    classificacao_palete = models.CharField(max_length=20, blank=True, default="PBR")
+    descartavel_automatico = models.PositiveIntegerField(default=0)
     status_conferencia = models.CharField(max_length=20, default="pendente")
 
     class Meta:
         db_table = "tms_romaneio_nfes"
         ordering = ["id"]
+
+
+class TmsRomaneioProduto(models.Model):
+    """Item da NF-e — tradução de tms_romaneio_nf_produtos."""
+
+    romaneio = models.ForeignKey(TmsRomaneio, related_name="produtos", on_delete=models.CASCADE)
+    chave_acesso = models.CharField(max_length=44)
+    ean = models.CharField(max_length=20)
+    descricao = models.CharField(max_length=180, blank=True, default="")
+    quantidade = models.FloatField(default=0)
+
+    class Meta:
+        db_table = "tms_romaneio_nf_produtos"
+        constraints = [
+            models.UniqueConstraint(fields=["romaneio", "chave_acesso", "ean"], name="tms_romaneio_produto_unico"),
+        ]
+
+
+class TmsLocal(models.Model):
+    """Cadastro fiscal de CD e loja usado para achar o destino pelo CNPJ do XML."""
+
+    tipo = models.CharField(max_length=10, default="LOJA")
+    codigo = models.CharField(max_length=20)
+    nome = models.CharField(max_length=180)
+    endereco = models.CharField(max_length=240, blank=True, default="")
+    cep = models.CharField(max_length=12, blank=True, default="")
+    cnpj = models.CharField(max_length=14, db_index=True)
+    ativo = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = "tms_locais"
+        ordering = ["tipo", "codigo"]
+
+
+class TmsRomaneioPrevia(models.Model):
+    """Prévia do XML, válida por um dia, como tms_romaneio_import_drafts."""
+
+    token = models.CharField(max_length=64, unique=True)
+    criado_por = models.CharField(max_length=160)
+    payload_json = models.JSONField(default=dict)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "tms_romaneio_import_drafts"
+
+
+class TmsRomaneioLacreFoto(models.Model):
+    romaneio = models.OneToOneField(TmsRomaneio, related_name="foto_lacres", on_delete=models.CASCADE)
+    arquivo_nome = models.CharField(max_length=180)
+    mime_type = models.CharField(max_length=40)
+    tamanho_bytes = models.PositiveIntegerField(default=0)
+    conteudo = models.BinaryField()
+    criado_por = models.CharField(max_length=160, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "tms_romaneio_lacre_fotos"
 
 
 class TmsRascunho(models.Model):
