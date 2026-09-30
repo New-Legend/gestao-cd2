@@ -101,11 +101,9 @@
       border-radius: 8px;
       background: white;
       border: 2px solid rgba(255,255,255,.9);
-      color: var(--blue-900);
-      display: grid;
-      place-items: center;
-      font-weight: 900;
-      font-size: 14px;
+      display: block;
+      object-fit: contain;
+      padding: 3px;
     }
     .brand-title { font-weight: 800; line-height: 1.15; }
     .brand-title span { display: block; font-size: 12px; color: #cfe4ff; font-weight: 600; margin-top: 3px; }
@@ -4850,8 +4848,9 @@
     body.fusao-cd .brand-title span { color: #cfe4ff; }
     body.fusao-cd .brand-mark {
       background: #fff;
-      color: #073b73;
       border: 2px solid #ffd21f;
+      object-fit: contain;
+      padding: 3px;
     }
     body.fusao-cd .topbar,
     body.fusao-cd #app-topbar {
@@ -5439,7 +5438,7 @@
   <div class="app-shell min-h-screen">
     <aside id="erp-sidebar" class="sidebar erp-sidebar theme-primary-surface" aria-label="Menu principal">
       <a class="brand erp-sidebar-brand" href="{% url 'dashboard' %}" title="Gestão CD">
-        <span class="brand-mark" aria-hidden="true">CD</span>
+        <img class="brand-mark" src="{% static 'painel/img/gestao-cd-192.png' %}" alt="" aria-hidden="true">
         <span class="brand-title">Gestão CD<span>Operação logística</span></span>
       </a>
       <nav class="erp-sidebar-tree" aria-label="Navegação">

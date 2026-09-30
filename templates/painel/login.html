@@ -26,9 +26,27 @@
       padding: 24px;
       font-family: "Segoe UI", Arial, sans-serif;
       background:
-        radial-gradient(1200px 500px at 10% -10%, rgba(255,210,31,.22), transparent 55%),
-        linear-gradient(145deg, var(--blue2) 0%, var(--blue) 58%, #0a4a8a 100%);
+        linear-gradient(145deg, rgba(6,29,55,.82) 0%, rgba(7,59,115,.78) 58%, rgba(10,74,138,.75) 100%),
+        url("{% static 'painel/img/gestao-cd-login-hero-v2.png' %}") center / cover no-repeat fixed;
       overflow-x: hidden;
+    }
+    .mark {
+      width: 72px;
+      height: 72px;
+      border-radius: 16px;
+      display: block;
+      object-fit: contain;
+      background: #fff;
+      border: 2px solid var(--yellow);
+      padding: 6px;
+      margin: 0 0 18px;
+    }
+    .krill-logo {
+      display: block;
+      width: min(160px, 55%);
+      height: auto;
+      margin: 0 0 14px;
+      object-fit: contain;
     }
     .card {
       width: min(440px, 100%);
@@ -37,20 +55,6 @@
       padding: 28px;
       border-top: 6px solid var(--yellow);
       box-shadow: 0 28px 90px rgba(6,29,55,.35);
-    }
-    .mark {
-      width: 72px;
-      height: 72px;
-      border-radius: 16px;
-      display: grid;
-      place-items: center;
-      background: var(--blue2);
-      color: var(--yellow);
-      border: 2px solid var(--yellow);
-      font-weight: 900;
-      font-size: 22px;
-      letter-spacing: .02em;
-      margin: 0 0 18px;
     }
     h1 { margin: 0 0 6px; color: var(--blue2); font-size: 30px; line-height: 1.15; }
     .brand-sub { margin: 0 0 8px; color: var(--blue); font-weight: 800; font-size: 13px; text-transform: uppercase; letter-spacing: .04em; }
@@ -119,6 +123,7 @@
       body { place-items: start center; padding: 18px 12px; }
       .card { margin-top: 10px; padding: 22px; box-shadow: 0 12px 34px rgba(6,29,55,.25); }
       .mark { width: 68px; height: 68px; margin-bottom: 14px; }
+      .krill-logo { width: min(140px, 60%); }
       h1 { font-size: 28px; }
       input, button { min-height: 48px; font-size: 16px; }
     }
@@ -126,7 +131,8 @@
 </head>
 <body>
   <main class="card">
-    <div class="mark" aria-hidden="true">CD</div>
+    <img class="krill-logo" src="{% static 'painel/img/rede-krill-logo-clean.png' %}" alt="Rede Krill">
+    <img class="mark" src="{% static 'painel/img/gestao-cd-192.png' %}" alt="" aria-hidden="true">
     <p class="brand-sub">Operação logística</p>
     <h1>Gestão CD</h1>
     <p>Entre com seu usuário e senha para acessar a operação.</p>

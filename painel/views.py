@@ -3628,9 +3628,9 @@ def pwa_manifest(request):
 @never_cache
 def pwa_icon(request, filename):
     allowed = {
-        "apple-touch-icon.png": "modelo-teste-apple.png",
-        "apple-touch-icon-precomposed.png": "modelo-teste-apple.png",
-        "favicon.ico": "modelo-teste-192.png",
+        "apple-touch-icon.png": "gestao-cd-192.png",
+        "apple-touch-icon-precomposed.png": "gestao-cd-192.png",
+        "favicon.ico": "gestao-cd-192.png",
     }
     icon_name = allowed.get(filename)
     if not icon_name:
