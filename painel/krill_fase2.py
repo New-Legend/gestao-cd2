@@ -2,8 +2,8 @@
 
 Bipagem de NF-e, MDF-e, baixa manual, KM/palete, descarga, rota local,
 telemetria e os atalhos que o Gestão CD expunha e o Django ainda não tinha.
-O Durable Object de KPI não existe no Render. O snapshot em /api/stream/kpis
-é o substituto. O acumulado BlueSoft está em bluesoft_valor.py.
+O stream de /api/stream/kpis, a matriz do Google e o compositor de viagem
+estão em fusao_motor.py. O acumulado BlueSoft está em bluesoft_valor.py.
 """
 
 from __future__ import annotations
@@ -941,14 +941,14 @@ def api_rotas_calcular(request):
             lojas.append(code)
     if not cd_origem or not lojas:
         return JsonResponse({"error": "Informe o CD de origem e pelo menos uma loja (ex.: LJ04)."}, status=422)
-    chave = os.environ.get("GOOGLE_MAPS_API_KEY", "").strip()
-    if chave and chave != "SUA_CHAVE_AQUI":
-        return JsonResponse(
-            {
-                "error": "A chave Google está configurada, mas a matriz Distance Matrix ainda não é chamada neste Render. Use a otimização interna em /tms/rotas/otimizar/.",
-            },
-            status=501,
-        )
+    from .fusao_motor import RotaErro, calcular_google, chave_google
+
+    chave = chave_google()
+    if chave:
+        try:
+            return JsonResponse(calcular_google(cd_origem, lojas, chave))
+        except RotaErro as erro:
+            return JsonResponse({"error": str(erro)}, status=erro.status)
     local = _rota_local(cd_origem, lojas)
     if not local:
         return JsonResponse({"error": "Segredo GOOGLE_MAPS_API_KEY não configurado e há loja sem distância na tabela interna."}, status=422)
@@ -972,21 +972,9 @@ def api_inbox(request):
 
 @login_required
 def api_kpis(request):
-    if not k.allowed(request.user):
-        return JsonResponse({"ok": False}, status=403)
-    romaneios = k.romaneios_qs(request)
-    return JsonResponse(
-        {
-            "ok": True,
-            "fonte": "snapshot",
-            "notice": "O stream SSE do Durable Object não roda no Render. Este JSON é a fotografia atual.",
-            "romaneios_abertos": romaneios.filter(status__in=k.ABERTOS).count(),
-            "em_transporte": romaneios.filter(status="em_transporte").count(),
-            "divergencias_abertas": k.TmsDivergencia.objects.filter(status="aberta").count(),
-            "docas_livres": YmsDoca.objects.filter(cd_codigo__in=k.cd_codes(request), status="livre", ativa=True).count(),
-            "viagens_transito": TmsViagem.objects.filter(status_logistico__in=["em_transito", "em_transporte", "em_descarregamento"]).count(),
-        }
-    )
+    from .fusao_motor import responder_kpis
+
+    return responder_kpis(request)
 
 
 @csrf_exempt

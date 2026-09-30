@@ -1049,6 +1049,15 @@ def tms_otimizar(request):
     rows = list(romaneios_qs(request).filter(data=today()).exclude(status__in=["cancelado", "finalizado"]))
     rotas = list(TmsRota.objects.filter(ativa=True))
     if request.method == "POST":
+        from .fusao_motor import RotaErro, chave_google, otimizar_google
+
+        chave = chave_google()
+        if chave:
+            try:
+                otimizar_google(rows, current_cd_code(request), chave)
+                return redirect("/tms/executar/")
+            except RotaErro:
+                pass
         otimizar_romaneios(rows, rotas)
         return redirect("/tms/executar/")
     return render_screen(

@@ -414,6 +414,31 @@
     </div>
   {% endif %}
 
+  {% if can_tms_krill and not is_motorista %}
+    <div class="home-kpi-live" style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:16px 0">
+      <div class="home-metric-card"><span>Pendências</span><strong data-home-kpi="pendencias">—</strong></div>
+      <div class="home-metric-card"><span>Ruptura</span><strong data-home-kpi="ruptura">—</strong></div>
+      <div class="home-metric-card"><span>Funcionários</span><strong data-home-kpi="funcionarios">—</strong></div>
+      <div class="home-metric-card"><span>Unidades</span><strong data-home-kpi="unidades">—</strong></div>
+    </div>
+    <script>
+    (function(){
+      if(!window.EventSource)return;
+      var source=new EventSource("/api/stream/kpis?stream=1");
+      source.onmessage=function(event){
+        try{
+          var payload=JSON.parse(event.data);
+          ["pendencias","ruptura","funcionarios","unidades"].forEach(function(key){
+            var target=document.querySelector('[data-home-kpi="'+key+'"]');
+            if(target&&typeof payload[key]!=="undefined")target.textContent=new Intl.NumberFormat("pt-BR",{maximumFractionDigits:2}).format(Number(payload[key])||0);
+          });
+        }catch(_error){}
+      };
+      window.addEventListener("pagehide",function(){source.close();},{once:true});
+    })();
+    </script>
+  {% endif %}
+
   <div class="home-lower-panels">
     {% if show_colaboradores_panel %}
       <section class="panel">

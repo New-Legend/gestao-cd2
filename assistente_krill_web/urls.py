@@ -17,7 +17,7 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path
 
-from painel import krill_fase2, krill_telas, romaneio_telas, tms_expedicao, views
+from painel import fusao_motor, krill_fase2, krill_telas, romaneio_telas, tms_expedicao, views
 
 urlpatterns = [
     path('', views.dashboard, name='dashboard'),
@@ -83,6 +83,7 @@ urlpatterns = [
     path('tms/romaneios/', krill_telas.tms_romaneios, name='tms_romaneios'),
     path('tms/romaneios/novo/', romaneio_telas.tms_romaneios_novo),
     path('tms/romaneios/exportar/', krill_telas.tms_romaneios_export),
+    path('tms/romaneios/rascunhos/receber/', fusao_motor.tms_receber_carga),
     path('tms/romaneios/rascunhos/', krill_telas.tms_rascunhos),
     path('tms/romaneios/rascunhos/atualizacoes/', krill_telas.tms_rascunhos_feed),
     path('tms/romaneios/<int:pk>/', krill_telas.tms_romaneio_detalhe),
@@ -94,6 +95,7 @@ urlpatterns = [
     path('tms/romaneios/<int:pk>/bluesoft/', krill_fase2.tms_romaneio_bluesoft),
     path('tms/romaneios/<int:pk>/devolucao/', krill_fase2.tms_romaneio_devolucao),
     path('tms/romaneios/<int:pk>/excluir/', krill_fase2.tms_romaneio_excluir),
+    path('tms/viagens/', fusao_motor.tms_viagens),
     path('tms/viagens/<int:pk>/', krill_fase2.tms_viagem_detalhe),
     path('tms/mdfe/', krill_fase2.tms_mdfe_tela),
     path('api/romaneios/<int:pk>/bipar', krill_fase2.api_romaneio_bipar),
@@ -108,6 +110,14 @@ urlpatterns = [
     path('api/recebimento/retorno-rota', krill_fase2.api_retorno_rota),
     path('api/recebimento/descarga-calcular', krill_fase2.api_descarga_calcular),
     path('api/rotas/calcular', krill_fase2.api_rotas_calcular),
+    path('api/tms/viagens/compositor', fusao_motor.api_compositor),
+    path('api/viagens/planejamento-carga', fusao_motor.api_planejamento),
+    path('api/viagens/carga-mista', fusao_motor.api_carga_mista),
+    path('api/tms/transferencias', fusao_motor.api_transferencia),
+    path('api/email/cargas', fusao_motor.api_email_cargas),
+    path('api/produtos/importar-xml', fusao_motor.api_importar_xml),
+    path('api/logistica/geofence-zonas', fusao_motor.api_geofence_zonas),
+    path('downloads/gestao-cd-motorista.apk', fusao_motor.apk_motorista),
     path('api/stream/kpis', krill_fase2.api_kpis),
     path('api/notificacoes/inbox', krill_fase2.api_inbox),
     path('api/push', views.push_status),

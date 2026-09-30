@@ -73,7 +73,7 @@
   {% for field in screen.filters %}
   <label class="krill-field">{{ field.label }}
     {% if field.type == "select" %}
-    <select name="{{ field.name }}">
+    <select name="{{ field.name }}" {% if field.multiple %}multiple size="8"{% endif %}>
       {% for value, label in field.options %}
       <option value="{{ value }}" {% if field.value == value %}selected{% endif %}>{{ label }}</option>
       {% endfor %}
@@ -107,7 +107,7 @@
   {% for field in screen.form.fields %}
   <label class="krill-field {% if field.wide %}wide{% endif %}">{{ field.label }}
     {% if field.type == "select" %}
-    <select name="{{ field.name }}">
+    <select name="{{ field.name }}" {% if field.multiple %}multiple size="8"{% endif %}>
       {% for value, label in field.options %}
       <option value="{{ value }}" {% if field.value == value %}selected{% endif %}>{{ label }}</option>
       {% endfor %}
