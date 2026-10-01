@@ -37,6 +37,7 @@ CATALOGO = (
             ("/expedicao-controle/", "fa-truck-arrow-right", "Controle de expedição"),
             ("/produtos-cd/", "fa-barcode", "Produtos do CD"),
             ("/veiculos-disponibilidade/", "fa-truck", "Veículos"),
+            ("/frota/simulador/", "fa-map-location-dot", "Simulador da frota"),
         ),
     ),
     (

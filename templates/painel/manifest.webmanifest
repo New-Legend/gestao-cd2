@@ -19,6 +19,9 @@
   ],
   "shortcuts": [
     { "name": "Início", "short_name": "Início", "url": "/" },
-    { "name": "Check-list da Frota", "short_name": "Check-list", "url": "/modulo/checklist_frota/" }
+    { "name": "Painel do motorista", "short_name": "Motorista", "url": "/tms/motorista/painel/" },
+    { "name": "Checklist de viagem", "short_name": "Checklist", "url": "/tms/checklist-viagem/" },
+    { "name": "Romaneios", "short_name": "Romaneios", "url": "/tms/romaneios/" },
+    { "name": "Check-list da Frota", "short_name": "Frota", "url": "/modulo/checklist_frota/" }
   ]
 }

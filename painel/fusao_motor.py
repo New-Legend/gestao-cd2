@@ -7,11 +7,15 @@ dispositivo, simulação da frota e transição de transferência.
 
 from __future__ import annotations
 
+import base64
+import hashlib
+import hmac
 import io
 import json
 import math
 import os
 import re
+from datetime import timedelta
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -36,7 +40,10 @@ from .models import (
     FrotaDemoSimulacao,
     LogisticaDispositivo,
     PessoaTurno,
+    Recebimento,
     Separacao,
+    SistemaNotificacao,
+    TmsTransferenciaRecebimento,
     TmsGeofence,
     TmsRascunho,
     TmsRascunhoNfe,
@@ -566,6 +573,22 @@ def _compor(payload: dict, transferencia: bool, username: str) -> dict:
             row.status = "em_transferencia"
             campos.append("status")
         row.save(update_fields=campos)
+    if transferencia:
+        _avisar_operacao(
+            viagem,
+            "Transferência embarcada",
+            f"Transferência #{viagem.pk} saiu do planejamento: CD {origem} para CD {destino}, placa {veiculo.placa}.",
+            f"/tms/viagens/{viagem.pk}/",
+            "transferencia_embarcada",
+        )
+    else:
+        _avisar_operacao(
+            viagem,
+            "Nova viagem",
+            f"Viagem #{viagem.pk} vinculada à placa {veiculo.placa}, motorista {motorista}.",
+            f"/tms/viagens/{viagem.pk}/",
+            "nova_viagem",
+        )
     aviso = f"Composição confirmada na viagem {viagem.pk}."
     if transferencia:
         aviso = f"Transferência #{viagem.pk} embarcada e romaneios bloqueados para nova composição."
@@ -881,13 +904,124 @@ def _haversine(lat1, lng1, lat2, lng2) -> float:
     return 6371000 * 2 * math.atan2(math.sqrt(a), math.sqrt(max(0.0, 1 - a)))
 
 
+def _segredo_geofence() -> str:
+    return os.environ.get("GEOFENCING_JWT_SECRET", "").strip()
+
+
+def _b64url(raw: bytes) -> str:
+    return base64.urlsafe_b64encode(raw).rstrip(b"=").decode("ascii")
+
+
+def _b64url_decode(texto: str) -> bytes:
+    return base64.urlsafe_b64decode(texto + "=" * (-len(texto) % 4))
+
+
+def _sha256(texto: str) -> str:
+    return hashlib.sha256(texto.encode()).hexdigest()
+
+
+def _jwt_assinar(payload: dict) -> str:
+    cabecalho = _b64url(json.dumps({"alg": "HS256", "typ": "JWT"}, separators=(",", ":")).encode())
+    corpo = _b64url(json.dumps(payload, separators=(",", ":")).encode())
+    assinatura = hmac.new(_segredo_geofence().encode(), f"{cabecalho}.{corpo}".encode(), hashlib.sha256).digest()
+    return f"{cabecalho}.{corpo}.{_b64url(assinatura)}"
+
+
+def _jwt_ler(token: str) -> dict | None:
+    partes = token.split(".")
+    if len(partes) != 3 or not _segredo_geofence():
+        return None
+    try:
+        recebido = _b64url_decode(partes[2])
+        payload = json.loads(_b64url_decode(partes[1]))
+    except (ValueError, json.JSONDecodeError):
+        return None
+    esperado = hmac.new(_segredo_geofence().encode(), f"{partes[0]}.{partes[1]}".encode(), hashlib.sha256).digest()
+    if not hmac.compare_digest(esperado, recebido) or not isinstance(payload, dict):
+        return None
+    expira = payload.get("exp")
+    if not isinstance(expira, (int, float)) or expira <= timezone.now().timestamp():
+        return None
+    return payload
+
+
+def _dispositivo_por_jwt(token: str):
+    payload = _jwt_ler(token)
+    if not payload:
+        return None
+    device_id = str(payload.get("device_id") or "").strip()
+    jti = str(payload.get("jti") or "").strip()
+    sub = str(payload.get("sub") or "").strip()
+    if not device_id or not jti or not sub.isdigit():
+        return None
+    dispositivo = LogisticaDispositivo.objects.filter(
+        identificador=device_id,
+        token_hash=_sha256(jti),
+        motorista_usuario_id=int(sub),
+        ativo=True,
+    ).first()
+    if not dispositivo:
+        return None
+    dispositivo.ultimo_ping = timezone.now()
+    dispositivo.save(update_fields=["ultimo_ping"])
+    return dispositivo
+
+
 def _dispositivo_ativo(request):
     autorizacao = request.headers.get("Authorization") or ""
     token = autorizacao[7:].strip() if autorizacao.lower().startswith("bearer ") else ""
     token = token or (request.headers.get("X-Device-Id") or "").strip()
     if not token:
         return None
+    if token.count(".") == 2:
+        return _dispositivo_por_jwt(token)
     return LogisticaDispositivo.objects.filter(identificador=token, ativo=True).first()
+
+
+def emitir_dispositivo(ator, driver_id: int, nome: str) -> tuple[int, dict]:
+    if not _segredo_geofence():
+        return 503, {"ok": False, "error": "A chave JWT do geofencing ainda não está configurada."}
+    usuario = User.objects.filter(pk=driver_id, is_active=True).first()
+    if not usuario:
+        return 422, {"ok": False, "error": "O usuário não é um motorista ativo."}
+    if LogisticaDispositivo.objects.filter(motorista_usuario=usuario, ativo=True).exclude(token_hash="").exists():
+        return 409, {"ok": False, "error": "Este motorista já possui um aparelho ativo. Revogue-o antes de gerar outro token."}
+    device_id = f"device_{uuid.uuid4()}"
+    jti = str(uuid.uuid4())
+    emitido = int(timezone.now().timestamp())
+    token = _jwt_assinar(
+        {
+            "sub": str(usuario.pk),
+            "device_id": device_id,
+            "jti": jti,
+            "iat": emitido,
+            "exp": emitido + 180 * 24 * 60 * 60,
+            "scope": "geofencing:write",
+        }
+    )
+    exibido = (usuario.get_full_name() or usuario.username).strip()
+    LogisticaDispositivo.objects.create(
+        identificador=device_id[:80],
+        nome=(nome or "Aparelho Android")[:160] or "Aparelho Android",
+        tipo="celular",
+        motorista=exibido[:160],
+        motorista_usuario=usuario,
+        token_hash=_sha256(jti),
+        ativo=True,
+    )
+    _auditar(ator, "criou_dispositivo_geofence", "logistica_dispositivos", device_id, f"{nome} · motorista {usuario.pk}")
+    return 201, {"ok": True, "device": {"id": device_id, "driverId": usuario.pk, "name": (nome or "Aparelho Android")[:100]}, "token": token}
+
+
+def revogar_dispositivo(ator, device_id: str) -> tuple[int, dict]:
+    dispositivo = LogisticaDispositivo.objects.filter(identificador=device_id, ativo=True).first()
+    if not dispositivo:
+        return 404, {"ok": False, "error": "Dispositivo não encontrado ou já revogado."}
+    dispositivo.ativo = False
+    dispositivo.revogado_em = timezone.now()
+    dispositivo.save(update_fields=["ativo", "revogado_em"])
+    _auditar(ator, "revogou_dispositivo_geofence", "logistica_dispositivos", device_id, device_id)
+    return 200, {"ok": True, "revoked": True}
 
 
 def _numero(valor):
@@ -925,6 +1059,9 @@ def _nome_motorista_localizacao(payload: dict, dispositivo: LogisticaDispositivo
     bruto = payload.get("driverId", payload.get("motoristaId"))
     if bruto is not None and not str(bruto).strip().isdigit():
         nome = nome or str(bruto).strip()
+    if dispositivo.motorista_usuario_id and bruto is not None and str(bruto).strip().isdigit():
+        if int(str(bruto).strip()) != dispositivo.motorista_usuario_id:
+            return "", "O dispositivo não pertence ao motorista informado."
     if dispositivo.motorista and nome and nome.casefold() != dispositivo.motorista.casefold():
         return "", "O dispositivo não pertence ao motorista informado."
     if bruto is not None and str(bruto).strip().isdigit() and dispositivo.motorista and dispositivo.motorista.strip().isdigit():
@@ -1093,6 +1230,60 @@ def _frota_snapshot(cd: str) -> dict:
     }
 
 
+def html_painel_frota(cd: str) -> str:
+    snapshot = _frota_snapshot(cd)
+    estado = "Em trânsito" if snapshot["demo"]["status"] == "em_transito" else "Em carregamento"
+    regra = (
+        "Romaneio bloqueado na saída. Novas NF-es seguem para um romaneio futuro."
+        if snapshot["demo"]["hard_lock"]
+        else "Na doca: NF-es da mesma loja entram no romaneio ativo."
+    )
+    dados = json.dumps(snapshot, ensure_ascii=False).replace("<", "\\u003c")
+    resumo = snapshot["summary"]
+    return f"""
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+    <section class="frota-airport" aria-label="Painel de Frota">
+      <aside class="frota-airport-availability">
+        <header><span class="eyebrow">Frota / CD {escape(cd)}</span><h2>Painel de disponibilidade</h2><p>Posição operacional em tempo real.</p></header>
+        <article class="frota-demo-vehicle" data-frota-demo-card>
+          <div><strong>TST-0000</strong><span class="status-pill" data-frota-demo-status>{escape(estado)}</span></div>
+          <p><i class="fa-solid fa-location-dot" aria-hidden="true"></i> <span data-frota-demo-rule>{escape(regra)}</span></p>
+          <small data-frota-demo-updated>Pronto para a simulação</small>
+        </article>
+        <div class="frota-airport-statuses" aria-label="Situação da frota">
+          <article><i class="fa-solid fa-square-parking" aria-hidden="true"></i><span>Disponível</span><strong data-frota-summary="disponivel">{resumo["disponivel"]}</strong></article>
+          <article><i class="fa-solid fa-screwdriver-wrench" aria-hidden="true"></i><span>Indisponível</span><strong data-frota-summary="manutencao">{resumo["manutencao"]}</strong></article>
+          <article><i class="fa-solid fa-road" aria-hidden="true"></i><span>Em trânsito</span><strong data-frota-summary="em_transito">{resumo["em_transito"]}</strong></article>
+          <article><i class="fa-solid fa-box-open" aria-hidden="true"></i><span>Em carregamento</span><strong data-frota-summary="em_carregamento">{resumo["em_carregamento"]}</strong></article>
+        </div>
+      </aside>
+      <div class="frota-airport-map-wrap">
+        <div class="frota-airport-map" data-frota-airport-map aria-label="Mapa operacional do CD {escape(cd)}"></div>
+        <section class="frota-airport-simulator" aria-label="Simulador de waypoints">
+          <div><span class="eyebrow">Simulador da diretoria</span><h3>Waypoints do TST-0000</h3><p data-frota-demo-feedback hidden role="alert"></p></div>
+          <div class="frota-airport-actions">
+            <button class="warning" type="button" data-frota-waypoint="doca"><i class="fa-solid fa-box-open" aria-hidden="true"></i> Entrar na doca</button>
+            <button class="secondary" type="button" data-frota-waypoint="incluir_nf"><i class="fa-solid fa-file-circle-plus" aria-hidden="true"></i> Incluir NF adicional</button>
+            <button type="button" data-frota-waypoint="portaria"><i class="fa-solid fa-road" aria-hidden="true"></i> Cruzar portaria</button>
+            <button class="secondary" type="button" data-frota-waypoint="reiniciar" aria-label="Reiniciar simulação" title="Reiniciar simulação"><i class="fa-solid fa-rotate-right" aria-hidden="true"></i></button>
+          </div>
+        </section>
+      </div>
+    </section>
+    <script>(function(){{
+      var state={dados};var mapNode=document.querySelector('[data-frota-airport-map]');if(!mapNode)return;var map,marker,line;
+      function showFeedback(message){{var feedback=document.querySelector('[data-frota-demo-feedback]');if(feedback){{feedback.hidden=false;feedback.textContent=message||'Não foi possível atualizar a simulação.';}}}}
+      function statusLabel(){{return state.demo.status==='em_transito'?'Em trânsito':'Em carregamento';}}
+      function render(){{var status=document.querySelector('[data-frota-demo-status]'),rule=document.querySelector('[data-frota-demo-rule]'),clock=document.querySelector('[data-frota-demo-updated]');if(status)status.textContent=statusLabel();if(rule)rule.textContent=state.demo.hard_lock?'Romaneio bloqueado na saída. Novas NF-es seguem para um romaneio futuro.':'Na doca: NF-es da mesma loja entram no romaneio ativo.';if(clock)clock.textContent='Pronto para a simulação';document.querySelectorAll('[data-frota-summary]').forEach(function(node){{var key=node.getAttribute('data-frota-summary');node.textContent=String((state.summary&&state.summary[key])||0);}});}}
+      function draw(){{if(!window.L||!state.waypoints)return;var target=state.demo.status==='em_transito'?state.waypoints.portaria:state.waypoints.doca;if(!target)return;if(!map){{map=window.L.map(mapNode,{{zoomControl:true,attributionControl:true}}).setView([target.latitude,target.longitude],17);window.L.tileLayer('https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png',{{maxZoom:19,attribution:'&copy; OpenStreetMap contributors'}}).addTo(map);window.L.circleMarker([state.waypoints.doca.latitude,state.waypoints.doca.longitude],{{radius:9,color:'#0f766e',fillColor:'#14b8a6',fillOpacity:1}}).bindTooltip('Doca').addTo(map);window.L.circleMarker([state.waypoints.portaria.latitude,state.waypoints.portaria.longitude],{{radius:9,color:'#b45309',fillColor:'#f59e0b',fillOpacity:1}}).bindTooltip('Portaria').addTo(map);line=window.L.polyline([[state.waypoints.doca.latitude,state.waypoints.doca.longitude],[state.waypoints.portaria.latitude,state.waypoints.portaria.longitude]],{{color:'#64748b',dashArray:'6 7'}}).addTo(map);marker=window.L.marker([target.latitude,target.longitude]).addTo(map);}}else{{marker.setLatLng([target.latitude,target.longitude]);map.panTo([target.latitude,target.longitude]);}}marker.bindPopup('<strong>TST-0000</strong><br>'+statusLabel());}}
+      function update(action){{var buttons=document.querySelectorAll('[data-frota-waypoint]');buttons.forEach(function(button){{button.disabled=true;}});fetch('/api/frota/aeroporto/',{{method:'POST',credentials:'same-origin',headers:{{'Content-Type':'application/json',Accept:'application/json'}},body:JSON.stringify({{action:action}})}}).then(function(response){{return response.json().then(function(payload){{if(!response.ok||!payload.ok)throw new Error(payload.error||'Não foi possível atualizar a simulação.');return payload;}});}}).then(function(payload){{state=payload.data;render();draw();}}).catch(function(error){{showFeedback(error.message);}}).finally(function(){{buttons.forEach(function(button){{button.disabled=false;}});}});}}
+      document.querySelectorAll('[data-frota-waypoint]').forEach(function(button){{button.addEventListener('click',function(){{update(button.getAttribute('data-frota-waypoint'));}});}});
+      render();if(window.L)draw();else{{var loader=document.createElement('script');loader.src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';loader.crossOrigin='';loader.addEventListener('load',draw);document.head.appendChild(loader);}}
+      if(state.waypoints&&state.waypoints.doca&&state.waypoints.portaria){{var route='https://router.project-osrm.org/route/v1/driving/'+state.waypoints.doca.longitude+','+state.waypoints.doca.latitude+';'+state.waypoints.portaria.longitude+','+state.waypoints.portaria.latitude+'?overview=full&geometries=geojson';fetch(route).then(function(response){{return response.ok?response.json():null;}}).then(function(payload){{if(!payload||!payload.routes||!payload.routes[0]||!line)return;line.setLatLngs(payload.routes[0].geometry.coordinates.map(function(point){{return [point[1],point[0]];}}));}}).catch(function(){{}});}}
+    }})();</script>
+    """
+
+
 def _romaneio_tst(cd: str):
     return TmsRomaneio.objects.filter(numero_romaneio="TST-0000").filter(Q(cd_origem=cd) | Q(cd_origem__iendswith=cd))
 
@@ -1139,6 +1330,10 @@ def api_frota_aeroporto(request):
     _romaneio_tst(cd).update(**campos_romaneio)
     if acao == "reiniciar":
         _romaneio_tst(cd).update(quantidade_nfes=0)
+    if acao == "portaria":
+        _avisar_cd(cd, "Saída do CD", "TST-0000 cruzou a Portaria do CD e está em trânsito.", "/frota/simulador/", "frota_saida_cd")
+    elif acao == "doca":
+        _avisar_cd(cd, "Romaneio conferido", "TST-0000 está na doca e permanece aberto para NF-es da mesma loja.", "/frota/simulador/", "frota_doca")
     return JsonResponse({"ok": True, "data": _frota_snapshot(cd)})
 
 
@@ -1153,6 +1348,105 @@ def _cd_do_usuario(request, cd: str) -> bool:
 def _romaneios_da_viagem(viagem: TmsViagem):
     ids = [parada.romaneio_id for parada in viagem.paradas.all() if parada.romaneio_id]
     return TmsRomaneio.objects.filter(pk__in=ids)
+
+
+def _cd_notificacao(cd: str) -> str:
+    digitos = _digitos(cd)[-3:]
+    return digitos if digitos in {"801", "806"} else ""
+
+
+def _avisar_usuarios(titulo: str, mensagem: str, url: str, evento: str, cd: str, payload: dict, motorista_nome: str = ""):
+    views = _k()._views()
+    categoria = evento[:30]
+    unidade = _cd_notificacao(cd)
+    vistos = set()
+    chaves = ("tms_krill", "tms_expedicao", "receber_alertas_expedicao", "notificar_motorista_vinculado")
+    for usuario in User.objects.filter(is_active=True):
+        if not any(views.user_has_perm(usuario, chave) for chave in chaves):
+            continue
+        views.create_system_notification(usuario, titulo[:120], mensagem, url, categoria, unidade, payload)
+        vistos.add(usuario.pk)
+    nome = (motorista_nome or "").strip()
+    if not nome:
+        return
+    for usuario in User.objects.filter(is_active=True):
+        if usuario.pk in vistos:
+            continue
+        exibido = (usuario.get_full_name() or usuario.username or "").strip()
+        if exibido.casefold() == nome.casefold() or usuario.username.casefold() == nome.casefold():
+            views.create_system_notification(usuario, titulo[:120], mensagem, url, categoria, unidade, payload)
+
+
+def _avisar_operacao(viagem: TmsViagem, titulo: str, mensagem: str, url: str, evento: str):
+    """Manda o mesmo aviso para o sino e para o Web Push de quem opera o CD e do motorista."""
+    if SistemaNotificacao.objects.filter(categoria=evento[:30], payload__viagem_id=viagem.pk).exists():
+        return
+    _avisar_usuarios(
+        titulo,
+        mensagem,
+        url,
+        evento,
+        viagem.cd_atual or viagem.origem_cd or "",
+        {"viagem_id": viagem.pk, "placa": viagem.veiculo_id, "evento": evento},
+        viagem.motorista_nome,
+    )
+
+
+def _avisar_cd(cd: str, titulo: str, mensagem: str, url: str, evento: str):
+    limite = timezone.now() - timedelta(seconds=45)
+    if SistemaNotificacao.objects.filter(categoria=evento[:30], cd_unidade=_cd_notificacao(cd), criado_em__gte=limite).exists():
+        return
+    _avisar_usuarios(titulo, mensagem, url, evento, cd, {"cd": cd, "evento": evento})
+
+
+def _gravar_recibo(viagem: TmsViagem, ator: str) -> str:
+    romaneios = list(_romaneios_da_viagem(viagem))
+    notas = []
+    manifestos = []
+    paletes = 0
+    for row in romaneios:
+        numeros = [nota for nota in row.nfes.values_list("numero", flat=True) if nota]
+        notas.extend(numeros)
+        paletes += int(row.total_paletes or 0)
+        manifestos.append(
+            {
+                "romaneioId": row.pk,
+                "numero": row.numero_romaneio,
+                "origemCd": row.cd_origem,
+                "notasFiscais": numeros,
+                "paletes": int(row.total_paletes or 0),
+                "pesoKg": float(row.peso_bruto_kg or 0),
+            }
+        )
+    recibo = str(uuid.uuid4())
+    TmsTransferenciaRecebimento.objects.create(
+        id=recibo,
+        viagem=viagem,
+        cd_origem=(viagem.origem_cd or "")[:7],
+        cd_destino=(viagem.destino_cd or "")[:7],
+        placa=(viagem.veiculo_id or "")[:20],
+        motorista_nome=(viagem.motorista_nome or "")[:160],
+        total_paletes=paletes,
+        peso_total_kg=float(viagem.peso_total_kg or 0),
+        romaneios_json=manifestos,
+        notas_fiscais_json=list(dict.fromkeys(notas)),
+        recebido_por=ator[:160],
+    )
+    destino = _digitos(viagem.destino_cd)[-3:]
+    if destino in {"801", "806"}:
+        Recebimento.objects.create(
+            cd_unidade=destino,
+            data=timezone.localdate(),
+            fornecedor=f"Transferência do CD {viagem.origem_cd}"[:120],
+            nota_fiscal=", ".join(dict.fromkeys(notas))[:60],
+            produto="transferencia_cd",
+            paletes=paletes,
+            motorista=(viagem.motorista_nome or "")[:120],
+            agendado=False,
+            forma_pagamento="nao_paga",
+            observacao=f"Recibo {recibo} da viagem {viagem.pk}",
+        )
+    return recibo
 
 
 def _auditar(user, acao, modulo, objeto_id, detalhe):
@@ -1209,8 +1503,15 @@ def api_transferencia_transicao(request, pk):
             return _resposta_transicao(request, pk, corpo, 409)
         viagem.paradas.exclude(status="entregue").update(status="entregue")
         _romaneios_da_viagem(viagem).update(status="recebido_transferencia_cd", atualizado_por=ator)
-        recibo = str(uuid.uuid4())
+        recibo = _gravar_recibo(viagem, ator)
         _auditar(request.user, "confirmou_recebimento_transferencia_cd", "tms_viagens", viagem.pk, f"CD {viagem.destino_cd}")
+        _avisar_operacao(
+            viagem,
+            "Transferência recebida",
+            f"A placa {viagem.veiculo_id or 'sem placa'} foi recebida no CD {viagem.destino_cd}.",
+            "/tms/recebimento/",
+            "transferencia_recebida",
+        )
         return _resposta_transicao(request, pk, {"ok": True, "viagemId": viagem.pk, "status": "recebida_cd", "receiptId": recibo}, 200)
     esperado = {"iniciar_transporte": "embarcado", "aguardar_recebimento": "em_transporte_cd"}.get(acao)
     if not esperado:
@@ -1237,6 +1538,22 @@ def api_transferencia_transicao(request, pk):
     if not mudou:
         return _resposta_transicao(request, pk, {"ok": False, "error": "A transição já foi processada por outro evento."}, 409)
     _auditar(request.user, "alterou_status_transferencia_cd", "tms_viagens", viagem.pk, novo)
+    if novo == "em_transporte_cd":
+        _avisar_operacao(
+            viagem,
+            "Saída do CD confirmada",
+            f"Viagem {viagem.veiculo_id or 'sem placa'} saiu do CD {viagem.origem_cd} a caminho do CD {viagem.destino_cd}.",
+            "/tms/acompanhamento/",
+            "saida_cd",
+        )
+    else:
+        _avisar_operacao(
+            viagem,
+            "Chegada confirmada",
+            f"Viagem {viagem.veiculo_id or 'sem placa'} chegou ao CD {viagem.destino_cd}. Status: aguardando recebimento.",
+            "/tms/recebimento/",
+            "chegada_destino",
+        )
     return _resposta_transicao(request, pk, {"ok": True, "viagemId": viagem.pk, "status": novo}, 200)
 
 

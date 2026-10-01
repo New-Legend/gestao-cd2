@@ -1807,6 +1807,27 @@ class TmsViagemParada(models.Model):
         ordering = ["ordem", "id"]
 
 
+class TmsTransferenciaRecebimento(models.Model):
+    """Confirmação de entrada de uma transferência CD a CD."""
+
+    id = models.CharField(max_length=40, primary_key=True)
+    viagem = models.ForeignKey(TmsViagem, related_name="recebimentos_transferencia", on_delete=models.CASCADE)
+    cd_origem = models.CharField(max_length=7, blank=True, default="")
+    cd_destino = models.CharField(max_length=7, blank=True, default="")
+    placa = models.CharField(max_length=20, blank=True, default="")
+    motorista_nome = models.CharField(max_length=160, blank=True, default="")
+    total_paletes = models.FloatField(default=0)
+    peso_total_kg = models.FloatField(default=0)
+    romaneios_json = models.JSONField(default=list)
+    notas_fiscais_json = models.JSONField(default=list)
+    recebido_por = models.CharField(max_length=160, blank=True, default="")
+    recebido_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "tms_transferencia_recebimentos"
+        ordering = ["-recebido_em"]
+
+
 class FrotaDemoSimulacao(models.Model):
     """Waypoint de demonstração TST-0000 — espelho de frota_demo_simulacoes."""
 
@@ -2225,7 +2246,16 @@ class LogisticaDispositivo(models.Model):
     nome = models.CharField(max_length=160, blank=True, default="")
     tipo = models.CharField(max_length=40, default="celular")
     motorista = models.CharField(max_length=160, blank=True, default="")
+    motorista_usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="dispositivos_logistica",
+    )
+    token_hash = models.CharField(max_length=64, blank=True, default="")
     ativo = models.BooleanField(default=True)
+    revogado_em = models.DateTimeField(null=True, blank=True)
     latitude = models.FloatField(null=True, blank=True)
     longitude = models.FloatField(null=True, blank=True)
     ultimo_ping = models.DateTimeField(null=True, blank=True)

@@ -1036,11 +1036,21 @@ def api_geofence_trigger(request):
         ocorreu_em=timezone.now(),
     )
     cerca_id = _text(payload.get("geofence_id"))
-    if acao == "enter" and cerca_id:
-        cerca = TmsGeofence.objects.filter(pk=cerca_id, ativo=True).first()
-        if cerca and cerca.tipo == "LOJA" and trip.status_logistico in TRANSITO:
-            trip.status_logistico = "em_descarregamento"
-            trip.save(update_fields=["status_logistico"])
+    cerca = TmsGeofence.objects.filter(pk=cerca_id, ativo=True).first() if acao == "enter" and cerca_id else None
+    if cerca and cerca.tipo == "LOJA" and trip.status_logistico in TRANSITO:
+        trip.status_logistico = "em_descarregamento"
+        trip.save(update_fields=["status_logistico"])
+    if acao == "enter" and cerca and cerca.tipo in {"LOJA", "CD"}:
+        from .fusao_motor import _avisar_operacao
+
+        evento = "chegada_destino" if cerca.tipo == "CD" else "chegada_loja"
+        _avisar_operacao(
+            trip,
+            "Chegada confirmada",
+            f"Viagem {trip.veiculo_id or 'sem placa'} chegou a {cerca.nome}. Status: {'aguardando recebimento' if cerca.tipo == 'CD' else 'em descarregamento'}.",
+            "/tms/recebimento/" if cerca.tipo == "CD" else "/tms/acompanhamento/",
+            evento,
+        )
     return JsonResponse({"ok": True})
 
 
@@ -1051,6 +1061,19 @@ def api_dispositivos(request):
         return JsonResponse({"error": "Sem permissão."}, status=403)
     if request.method == "POST":
         payload = _json(request) or {}
+        acao = _text(payload.get("action") or request.POST.get("action")).lower()
+        if acao in {"criar", "revogar"}:
+            from .fusao_motor import emitir_dispositivo, revogar_dispositivo
+
+            if acao == "revogar":
+                status, corpo = revogar_dispositivo(request.user, _text(payload.get("deviceId") or payload.get("id") or request.POST.get("device_id")))
+            else:
+                try:
+                    driver_id = int(payload.get("driverId") or payload.get("motoristaId") or request.POST.get("driver_id") or 0)
+                except (TypeError, ValueError):
+                    driver_id = 0
+                status, corpo = emitir_dispositivo(request.user, driver_id, _text(payload.get("name") or payload.get("nome") or request.POST.get("name")))
+            return JsonResponse(corpo, status=status)
         identificador = _text(payload.get("identificador") or request.POST.get("identificador"))[:80]
         if not identificador:
             return JsonResponse({"error": "Informe o identificador."}, status=422)

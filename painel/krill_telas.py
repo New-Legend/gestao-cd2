@@ -36,6 +36,7 @@ from .models import (
     Pendencia,
     PessoaTurno,
     ProdutoGtin,
+    LogisticaDispositivo,
     Recebimento,
     RecebimentoAgenda,
     Separacao,
@@ -46,6 +47,7 @@ from .models import (
     TmsRomaneio,
     TmsRota,
     TmsTelemetria,
+    TmsTransferenciaRecebimento,
     TmsVeiculo,
     TmsViagem,
     VeiculoFrota,
@@ -1331,10 +1333,40 @@ def tms_cercas(request):
 
 
 @login_required
+@require_http_methods(["GET", "POST"])
 def tms_dispositivos(request):
     blocked = _gate(request, "Dispositivos")
     if blocked:
         return blocked
+    from django.contrib.auth.models import User
+
+    from .fusao_motor import emitir_dispositivo, revogar_dispositivo
+
+    notice = ""
+    error = ""
+    if request.method == "POST" and request.POST.get("action") == "revogar":
+        _status, corpo = revogar_dispositivo(request.user, (request.POST.get("device_id") or "").strip())
+        notice = "Aparelho revogado." if corpo.get("ok") else ""
+        error = "" if corpo.get("ok") else corpo.get("error") or "Não foi possível revogar."
+    elif request.method == "POST":
+        try:
+            driver_id = int(request.POST.get("driver_id") or 0)
+        except (TypeError, ValueError):
+            driver_id = 0
+        _status, corpo = emitir_dispositivo(request.user, driver_id, (request.POST.get("name") or "").strip())
+        if corpo.get("ok"):
+            notice = f"Token de ativação — copie agora, ele não aparece de novo: {corpo.get('token')}"
+        else:
+            error = corpo.get("error") or "Não foi possível gerar o token."
+    motoristas = [(str(usuario.pk), usuario.get_full_name() or usuario.username) for usuario in User.objects.filter(is_active=True).order_by("username")[:200]]
+    aparelhos = []
+    for device in LogisticaDispositivo.objects.select_related("motorista_usuario").order_by("-ativo", "nome")[:100]:
+        acao = cell(
+            "Ativo" if device.ativo else "Revogado",
+            "ok" if device.ativo else "danger",
+            forms=[{"action": "/tms/geofencing/dispositivos/", "label": "Revogar", "fields": {"action": "revogar", "device_id": device.identificador}}] if device.ativo else [],
+        )
+        aparelhos.append([cell(device.motorista or "-"), cell(device.nome or device.identificador), cell(fmt_dt(device.ultimo_ping) if device.ultimo_ping else "-"), acao])
     veiculos = list(TmsVeiculo.objects.filter(ativo=True))
     rows = []
     for veiculo in veiculos:
@@ -1343,11 +1375,25 @@ def tms_dispositivos(request):
     return render_screen(
         request,
         blank_screen(
-            title="Dispositivos de telemetria",
+            title="Dispositivos dos motoristas",
             eyebrow="TMS / Geofencing",
-            lead="Veículos homologados e o último sinal recebido.",
-            actions=[{"href": "/tms/geofencing/cercas/", "label": "Cercas"}],
-            tables=[{"title": "Frota rastreada", "lead": "", "headers": ["Placa", "Id", "Último sinal"], "rows": rows}],
+            lead="Gere um token individual para o aplicativo do motorista. O identificador antigo continua valendo. A instalação do aplicativo também está no login e no menu do usuário.",
+            notice=notice,
+            error=error,
+            actions=[{"href": "/downloads/gestao-cd-motorista.apk", "label": "Baixar app do motorista"}, {"href": "/tms/geofencing/cercas/", "label": "Cercas"}],
+            form={
+                "action": "/tms/geofencing/dispositivos/",
+                "title": "Ativar aparelho",
+                "submit": "Gerar token",
+                "fields": [
+                    {"name": "driver_id", "label": "Motorista", "type": "select", "value": "", "options": motoristas, "required": True},
+                    {"name": "name", "label": "Nome do aparelho", "type": "text", "value": "Aparelho Android", "required": True},
+                ],
+            },
+            tables=[
+                {"title": "Aparelhos", "lead": "Revogar desativa o token na hora.", "headers": ["Motorista", "Aparelho", "Último uso", "Situação"], "rows": aparelhos},
+                {"title": "Frota rastreada", "lead": "", "headers": ["Placa", "Id", "Último sinal"], "rows": rows},
+            ],
         ),
     )
 
@@ -1437,12 +1483,13 @@ def tms_transferencias(request):
             )
             return redirect("/tms/romaneios/")
     rows = list(romaneios_qs(request).filter(observacoes__icontains="Transferência").order_by("-id")[:40])
+    viagens = list(TmsViagem.objects.filter(tipo_operacao="transferencia_cd").order_by("-id")[:40])
     return render_screen(
         request,
         blank_screen(
             title="Transferências entre CDs",
             eyebrow="TMS",
-            lead="Uma transferência vira rascunho de romaneio no CD de origem.",
+            lead="Uma transferência vira rascunho de romaneio no CD de origem. As viagens compostas aparecem na tabela de baixo.",
             form={
                 "action": "/tms/transferencias/",
                 "title": "Nova transferência",
@@ -1453,7 +1500,24 @@ def tms_transferencias(request):
                     {"name": "total_paletes", "label": "Paletes", "type": "number", "value": "0"},
                 ],
             },
-            tables=[_romaneio_table(rows)],
+            tables=[
+                _romaneio_table(rows),
+                {
+                    "title": "Viagens de transferência",
+                    "lead": "",
+                    "headers": ["Viagem", "Placa", "Origem", "Destino", "Situação"],
+                    "rows": [
+                        [
+                            cell(trip.pk, href=f"/tms/viagens/{trip.pk}/"),
+                            cell(trip.veiculo_id or "-"),
+                            cell(trip.origem_cd or "-"),
+                            cell(trip.destino_cd or "-"),
+                            cell(trip.status_transferencia or trip.status),
+                        ]
+                        for trip in viagens
+                    ],
+                },
+            ],
         ),
     )
 
@@ -1463,14 +1527,48 @@ def tms_recebimento(request):
     blocked = _gate(request, "Recebimento de transferência")
     if blocked:
         return blocked
-    rows = list(romaneios_qs(request).filter(status__in=["entregue", "em_transporte"]).order_by("-data")[:80])
+    rows = list(romaneios_qs(request).filter(status__in=["entregue", "em_transporte", "aguardando_recebimento_cd"]).order_by("-data")[:80])
+    aguardando = list(TmsViagem.objects.filter(status_transferencia="aguardando_recebimento").order_by("-id")[:40])
+    recibos = list(TmsTransferenciaRecebimento.objects.select_related("viagem").order_by("-recebido_em")[:40])
     return render_screen(
         request,
         blank_screen(
             title="Recebimento de transferência",
             eyebrow="TMS",
-            lead="Cargas que já saíram e ainda precisam de confirmação na chegada.",
-            tables=[_romaneio_table(rows)],
+            lead="Cargas que já saíram e ainda precisam de confirmação na chegada. O recibo fica gravado quando a entrada é confirmada.",
+            tables=[
+                {
+                    "title": "Aguardando recebimento",
+                    "lead": "",
+                    "headers": ["Viagem", "Placa", "Origem", "Destino", "Motorista"],
+                    "rows": [
+                        [
+                            cell(trip.pk, href=f"/tms/viagens/{trip.pk}/"),
+                            cell(trip.veiculo_id or "-"),
+                            cell(trip.origem_cd or "-"),
+                            cell(trip.destino_cd or "-"),
+                            cell(trip.motorista_nome or "-"),
+                        ]
+                        for trip in aguardando
+                    ],
+                },
+                {
+                    "title": "Recibos",
+                    "lead": "",
+                    "headers": ["Quando", "Placa", "Destino", "Paletes", "Recebido por"],
+                    "rows": [
+                        [
+                            cell(fmt_dt(recibo.recebido_em)),
+                            cell(recibo.placa or "-"),
+                            cell(recibo.cd_destino or "-"),
+                            cell(recibo.total_paletes),
+                            cell(recibo.recebido_por or "-"),
+                        ]
+                        for recibo in recibos
+                    ],
+                },
+                _romaneio_table(rows),
+            ],
         ),
     )
 
@@ -2515,22 +2613,25 @@ def frota_simulador(request):
             notice = f"Acima do limite: {peso} kg contra {veiculo.capacidade_max_kg} kg."
         else:
             notice = f"Dentro do limite. Saldo de {round(veiculo.capacidade_max_kg - peso, 1)} kg."
+    from .fusao_motor import _cd_operacao, html_painel_frota
+
     return render_screen(
         request,
         blank_screen(
             title="Simulador de frota",
             eyebrow="Frota",
-            lead="Compara um peso informado com a capacidade homologada da placa.",
+            lead="Compara um peso informado com a capacidade homologada da placa e mostra o TST-0000 entre a doca e a portaria.",
             notice=notice,
             form={
                 "action": "/frota/simulador/",
-                "title": "Simulação",
+                "title": "Simulação de peso",
                 "submit": "Simular",
                 "fields": [
                     {"name": "placa", "label": "Placa", "type": "text", "value": placa},
                     {"name": "peso", "label": "Peso (kg)", "type": "number", "value": peso or ""},
                 ],
             },
+            extra_html=html_painel_frota(_cd_operacao(request)),
         ),
     )
 
